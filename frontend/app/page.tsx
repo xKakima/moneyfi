@@ -20,6 +20,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { useTheme } from "@/components/theme-provider";
+import { currencyOptions, formatCurrency, isValidCurrencyCode } from "@/lib/currency";
 import { getSupabaseBrowserClient, getSupabaseConfigurationError } from "@/lib/supabase/client";
 
 type AccountRow = {
@@ -27,6 +28,7 @@ type AccountRow = {
   name: string;
   type: string;
   balance: number | string;
+  currency: string;
 };
 
 type TransactionRow = {
@@ -36,6 +38,7 @@ type TransactionRow = {
   category: string | null;
   notes: string | null;
   transaction_type: string;
+  currency: string;
   created_at: string;
 };
 
@@ -48,15 +51,46 @@ type DashboardState = {
 
 const supabase = getSupabaseBrowserClient();
 const configurationError = getSupabaseConfigurationError();
-const currencyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const currencyListId = "moneyfi-currency-list";
 
 function numericValue(value: number | string) {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : 0;
 }
 
-function formatCurrency(value: number) {
-  return currencyFormatter.format(value);
+function CurrencyCodeInput({
+  id,
+  value,
+  onChange,
+  disabled = false,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <>
+      <input
+        autoCapitalize="characters"
+        className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm uppercase text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-65"
+        disabled={disabled}
+        id={id}
+        list={currencyListId}
+        maxLength={3}
+        onChange={(event) => onChange(event.target.value.toUpperCase())}
+        pattern="[A-Z]{3}"
+        placeholder="PHP"
+        required
+        title="Choose a currency or enter a valid three-letter ISO code."
+        value={value}
+      />
+      <datalist id={currencyListId}>
+        {currencyOptions.map(([code, name]) => <option key={code} label={`${code} - ${name}`} value={code} />)}
+      </datalist>
+      {!disabled && <span className="mt-1 block text-xs font-normal text-muted">Asian currencies are listed first; enter another ISO currency code if needed.</span>}
+    </>
+  );
 }
 
 function ThemeToggle() {
@@ -251,17 +285,24 @@ function AddTransactionDialog({
 }) {
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [currency, setCurrency] = useState("PHP");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [transactionType, setTransactionType] = useState<"expense" | "income">("expense");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedAccount = accounts.find((account) => account.id === accountId);
+  const transactionCurrency = selectedAccount?.currency ?? currency;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsedAmount = Number(amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setError("Enter an amount greater than zero.");
+      return;
+    }
+    if (!isValidCurrencyCode(transactionCurrency)) {
+      setError("Enter a valid three-letter currency code.");
       return;
     }
 
@@ -272,6 +313,7 @@ function AddTransactionDialog({
         user_id: userId,
         account_id: accountId || null,
         amount: parsedAmount,
+        currency: transactionCurrency,
         category: category.trim() || null,
         transaction_type: transactionType,
         notes: notes.trim() || null,
@@ -317,10 +359,19 @@ function AddTransactionDialog({
           </div>
           <label className="block text-sm font-medium text-ink" htmlFor="transaction-account">
             Account <span className="font-normal text-muted">(optional)</span>
-            <select className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-account" onChange={(event) => setAccountId(event.target.value)} value={accountId}>
+            <select className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-account" onChange={(event) => {
+              const nextAccountId = event.target.value;
+              setAccountId(nextAccountId);
+              const nextAccount = accounts.find((account) => account.id === nextAccountId);
+              if (nextAccount) setCurrency(nextAccount.currency);
+            }} value={accountId}>
               <option value="">No account</option>
-              {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} ({account.currency})</option>)}
             </select>
+          </label>
+          <label className="block text-sm font-medium text-ink" htmlFor="transaction-currency">
+            Currency
+            <CurrencyCodeInput disabled={Boolean(selectedAccount)} id="transaction-currency" onChange={setCurrency} value={transactionCurrency} />
           </label>
           <label className="block text-sm font-medium text-ink" htmlFor="transaction-category">
             Category
@@ -354,6 +405,7 @@ function AddAccountDialog({
   const [name, setName] = useState("");
   const [type, setType] = useState("bank");
   const [balance, setBalance] = useState("0");
+  const [currency, setCurrency] = useState("PHP");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -362,6 +414,10 @@ function AddAccountDialog({
     const openingBalance = Number(balance);
     if (!Number.isFinite(openingBalance)) {
       setError("Enter a valid opening balance.");
+      return;
+    }
+    if (!isValidCurrencyCode(currency)) {
+      setError("Enter a valid three-letter currency code.");
       return;
     }
 
@@ -373,6 +429,7 @@ function AddAccountDialog({
         name: name.trim(),
         type,
         balance: openingBalance,
+        currency,
       });
 
       if (insertError) {
@@ -412,6 +469,10 @@ function AddAccountDialog({
               <option value="investment">Investment</option>
               <option value="credit_card">Credit card</option>
             </select>
+          </label>
+          <label className="block text-sm font-medium text-ink" htmlFor="account-currency">
+            Currency
+            <CurrencyCodeInput id="account-currency" onChange={setCurrency} value={currency} />
           </label>
           <label className="block text-sm font-medium text-ink" htmlFor="account-balance">
             Current balance
@@ -469,8 +530,8 @@ export default function DashboardPage() {
     async function loadDashboard() {
       try {
         const [accountResult, transactionResult] = await Promise.all([
-          client.from("accounts").select("id, name, type, balance").eq("user_id", activeUserId),
-          client.from("transactions").select("id, amount, account_id, category, notes, transaction_type, created_at").eq("user_id", activeUserId).order("created_at", { ascending: false }).limit(6),
+          client.from("accounts").select("id, name, type, balance, currency").eq("user_id", activeUserId),
+          client.from("transactions").select("id, amount, account_id, category, notes, transaction_type, currency, created_at").eq("user_id", activeUserId).order("created_at", { ascending: false }).limit(6),
         ]);
 
         if (!active) return;
@@ -541,10 +602,20 @@ export default function DashboardPage() {
   const cashAccounts = accounts.filter((account) => account.type === "bank" || account.type === "ewallet");
   const investmentAccounts = accounts.filter((account) => account.type === "investment");
   const creditAccounts = accounts.filter((account) => account.type === "credit_card");
+  const groupAccountTotals = (entries: AccountRow[], absolute = false) => {
+    const totals = new Map<string, number>();
+    for (const account of entries) {
+      const currency = account.currency || "USD";
+      const balance = numericValue(account.balance);
+      totals.set(currency, (totals.get(currency) ?? 0) + (absolute ? Math.abs(balance) : balance));
+    }
+    return Array.from(totals, ([currency, value]) => ({ currency, value }))
+      .sort((left, right) => left.currency === "PHP" ? -1 : right.currency === "PHP" ? 1 : left.currency.localeCompare(right.currency));
+  };
   const metrics = [
-    { label: "Cash & savings", accounts: cashAccounts, value: cashAccounts.reduce((total, account) => total + numericValue(account.balance), 0), icon: Wallet, tone: "green" },
-    { label: "Investments", accounts: investmentAccounts, value: investmentAccounts.reduce((total, account) => total + numericValue(account.balance), 0), icon: TrendingUp, tone: "pink" },
-    { label: "Credit debt", accounts: creditAccounts, value: creditAccounts.reduce((total, account) => total + Math.abs(numericValue(account.balance)), 0), icon: CreditCard, tone: "blue" },
+    { label: "Cash & savings", accounts: cashAccounts, totals: groupAccountTotals(cashAccounts), icon: Wallet, tone: "green" },
+    { label: "Investments", accounts: investmentAccounts, totals: groupAccountTotals(investmentAccounts), icon: TrendingUp, tone: "pink" },
+    { label: "Credit debt", accounts: creditAccounts, totals: groupAccountTotals(creditAccounts, true), icon: CreditCard, tone: "blue" },
   ] as const;
   const accountNames = new Map(accounts.map((account) => [account.id, account.name]));
 
@@ -593,7 +664,15 @@ export default function DashboardPage() {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-medium text-muted">{metric.label}</p>
-                      <p className="mt-4 font-display text-[30px] leading-none tracking-normal text-ink sm:text-[32px]">{currentData && !currentData.error ? formatCurrency(metric.value) : "—"}</p>
+                      <div className="mt-3 space-y-1">
+                        {currentData && !currentData.error
+                          ? (metric.totals.length ? metric.totals : [{ currency: "PHP", value: 0 }]).map((total) => (
+                            <p className="font-display text-[25px] leading-tight tracking-normal text-ink sm:text-[27px]" key={total.currency}>
+                              {formatCurrency(total.value, total.currency)}
+                            </p>
+                          ))
+                          : <p className="font-display text-[30px] leading-none text-ink">—</p>}
+                      </div>
                     </div>
                     <span className={`metric-icon metric-icon-${metric.tone}`}><Icon size={19} strokeWidth={1.8} /></span>
                   </div>
@@ -634,7 +713,7 @@ export default function DashboardPage() {
             <ul className="divide-y divide-line">
               {transactions.map((transaction) => {
                 const isIncome = transaction.transaction_type === "income";
-                const amount = formatCurrency(Math.abs(numericValue(transaction.amount)));
+                const amount = formatCurrency(Math.abs(numericValue(transaction.amount)), transaction.currency || "USD");
                 const title = transaction.category || transaction.notes || (isIncome ? "Income" : "Expense");
                 const accountName = transaction.account_id ? accountNames.get(transaction.account_id) : null;
 
