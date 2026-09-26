@@ -4,11 +4,12 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Banknote,
-  Bell,
   CircleHelp,
+  Check,
   CreditCard,
   Leaf,
   LogOut,
+  Menu,
   Moon,
   Plus,
   Sun,
@@ -18,6 +19,7 @@ import {
 } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { useTheme } from "@/components/theme-provider";
 import { currencyOptions, formatCurrency, isValidCurrencyCode } from "@/lib/currency";
@@ -93,6 +95,16 @@ function CurrencyCodeInput({
   );
 }
 
+function useEscapeToClose(onClose: () => void) {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+}
+
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
@@ -112,30 +124,30 @@ function ThemeToggle() {
 
 function DashboardHeader({ email, onSignOut }: { email?: string; onSignOut?: () => void }) {
   const initial = email?.trim().charAt(0).toUpperCase() || "A";
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header className="border-b border-line bg-surface/85">
+    <header className="relative border-b border-line bg-surface/85">
       <div className="mx-auto flex h-[72px] max-w-[1320px] items-center justify-between px-5 sm:px-8 lg:px-12">
-        <a className="flex items-center gap-2.5" href="#overview" aria-label="Moneyfi home">
+        <Link className="flex items-center gap-2.5" href="/" aria-label="Moneyfi home">
           <span className="flex size-9 items-center justify-center rounded-xl bg-accent text-white">
             <Leaf size={19} strokeWidth={2} />
           </span>
           <span className="font-display text-[23px] leading-none tracking-normal text-ink">moneyfi</span>
-        </a>
+        </Link>
 
         {email && (
           <nav aria-label="Main navigation" className="hidden items-center gap-8 text-sm font-medium text-muted md:flex">
-            <a className="text-ink" href="#overview">Overview</a>
-            <a className="transition-colors hover:text-ink" href="#activity">Transactions</a>
-            <a className="transition-colors hover:text-ink" href="#accounts">Accounts</a>
+            <Link className="text-ink" href="/">Overview</Link>
+            <Link className="transition-colors hover:text-ink" href="/transactions">Transactions</Link>
+            <Link className="transition-colors hover:text-ink" href="/accounts">Accounts</Link>
           </nav>
         )}
 
         <div className="flex items-center gap-2 sm:gap-3">
           {email && (
-            <button aria-label="Notifications" className="icon-button relative hidden sm:inline-flex" type="button">
-              <Bell size={18} strokeWidth={1.8} />
-              <span className="absolute right-[9px] top-[8px] size-1.5 rounded-full bg-secondary" />
+            <button aria-expanded={mobileMenuOpen} aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"} className="icon-button md:hidden" onClick={() => setMobileMenuOpen((open) => !open)} type="button">
+              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           )}
           <ThemeToggle />
@@ -158,6 +170,13 @@ function DashboardHeader({ email, onSignOut }: { email?: string; onSignOut?: () 
             </>
           )}
         </div>
+        {email && mobileMenuOpen && (
+          <nav aria-label="Mobile navigation" className="absolute left-0 right-0 top-[72px] z-40 border-b border-line bg-surface px-5 py-3 shadow-md md:hidden">
+            <Link className="block rounded-md px-3 py-2.5 text-sm font-medium text-ink hover:bg-raised" href="/" onClick={() => setMobileMenuOpen(false)}>Overview</Link>
+            <Link className="block rounded-md px-3 py-2.5 text-sm font-medium text-ink hover:bg-raised" href="/transactions" onClick={() => setMobileMenuOpen(false)}>Transactions</Link>
+            <Link className="block rounded-md px-3 py-2.5 text-sm font-medium text-ink hover:bg-raised" href="/accounts" onClick={() => setMobileMenuOpen(false)}>Accounts</Link>
+          </nav>
+        )}
       </div>
     </header>
   );
@@ -221,7 +240,7 @@ function AuthPanel({ client }: { client: SupabaseClient }) {
             autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
             className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
             id="auth-password"
-            minLength={6}
+            minLength={mode === "sign-up" ? 12 : 6}
             onChange={(event) => setPassword(event.target.value)}
             required
             type="password"
@@ -293,6 +312,7 @@ function AddTransactionDialog({
   const [error, setError] = useState<string | null>(null);
   const selectedAccount = accounts.find((account) => account.id === accountId);
   const transactionCurrency = selectedAccount?.currency ?? currency;
+  useEscapeToClose(onClose);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -335,7 +355,7 @@ function AddTransactionDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section aria-labelledby="transaction-dialog-title" aria-modal="true" className="w-full max-w-[480px] rounded-xl border border-line bg-surface p-5 shadow-xl sm:p-6" role="dialog">
+      <section aria-labelledby="transaction-dialog-title" aria-modal="true" className="max-h-[calc(100dvh-2rem)] w-full max-w-[480px] overflow-y-auto rounded-xl border border-line bg-surface p-5 shadow-xl sm:p-6" role="dialog">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-[24px] text-ink" id="transaction-dialog-title">Add transaction</h2>
@@ -354,7 +374,7 @@ function AddTransactionDialog({
             </label>
             <label className="block text-sm font-medium text-ink" htmlFor="transaction-amount">
               Amount
-              <input className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-amount" min="0.01" onChange={(event) => setAmount(event.target.value)} required step="0.01" type="number" value={amount} />
+              <input autoFocus className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-amount" min="0.01" onChange={(event) => setAmount(event.target.value)} required step="0.01" type="number" value={amount} />
             </label>
           </div>
           <label className="block text-sm font-medium text-ink" htmlFor="transaction-account">
@@ -408,6 +428,7 @@ function AddAccountDialog({
   const [currency, setCurrency] = useState("PHP");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEscapeToClose(onClose);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -448,7 +469,7 @@ function AddAccountDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section aria-labelledby="account-dialog-title" aria-modal="true" className="w-full max-w-[440px] rounded-xl border border-line bg-surface p-5 shadow-xl sm:p-6" role="dialog">
+      <section aria-labelledby="account-dialog-title" aria-modal="true" className="max-h-[calc(100dvh-2rem)] w-full max-w-[440px] overflow-y-auto rounded-xl border border-line bg-surface p-5 shadow-xl sm:p-6" role="dialog">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-[24px] text-ink" id="account-dialog-title">Add account</h2>
@@ -496,6 +517,7 @@ export default function DashboardPage() {
   const [refreshToken, setRefreshToken] = useState(0);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
   const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [saveConfirmation, setSaveConfirmation] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -627,6 +649,12 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-canvas transition-colors duration-300">
       <DashboardHeader email={session.user.email ?? "Account"} onSignOut={() => { void signOut(); }} />
       <main className="mx-auto max-w-[1320px] px-5 pb-12 pt-8 sm:px-8 sm:pt-11 lg:px-12 lg:pt-14">
+        {saveConfirmation && (
+          <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-accent/25 bg-accent-soft px-4 py-3 text-sm text-ink" role="status">
+            <span className="flex items-center gap-2"><Check className="text-accent" size={17} />{saveConfirmation}</span>
+            <button aria-label="Dismiss confirmation" className="text-muted hover:text-ink" onClick={() => setSaveConfirmation(null)} type="button"><X size={16} /></button>
+          </div>
+        )}
         <section aria-labelledby="overview-heading" id="overview">
           <div className="mb-7 flex flex-col gap-5 sm:mb-9 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -750,7 +778,10 @@ export default function DashboardPage() {
           accounts={accounts}
           client={supabase}
           onClose={() => setShowTransactionDialog(false)}
-          onSaved={() => setRefreshToken((value) => value + 1)}
+          onSaved={() => {
+            setRefreshToken((value) => value + 1);
+            setSaveConfirmation("Transaction saved.");
+          }}
           userId={session.user.id}
         />
       )}
@@ -758,7 +789,10 @@ export default function DashboardPage() {
         <AddAccountDialog
           client={supabase}
           onClose={() => setShowAccountDialog(false)}
-          onSaved={() => setRefreshToken((value) => value + 1)}
+          onSaved={() => {
+            setRefreshToken((value) => value + 1);
+            setSaveConfirmation("Account saved.");
+          }}
           userId={session.user.id}
         />
       )}
