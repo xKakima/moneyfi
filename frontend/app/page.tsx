@@ -340,12 +340,101 @@ function AddTransactionDialog({
   );
 }
 
+function AddAccountDialog({
+  client,
+  userId,
+  onClose,
+  onSaved,
+}: {
+  client: SupabaseClient;
+  userId: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState("bank");
+  const [balance, setBalance] = useState("0");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const openingBalance = Number(balance);
+    if (!Number.isFinite(openingBalance)) {
+      setError("Enter a valid opening balance.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const { error: insertError } = await client.from("accounts").insert({
+        user_id: userId,
+        name: name.trim(),
+        type,
+        balance: openingBalance,
+      });
+
+      if (insertError) {
+        setError(insertError.message);
+        return;
+      }
+
+      onSaved();
+      onClose();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Unable to save this account.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section aria-labelledby="account-dialog-title" aria-modal="true" className="w-full max-w-[440px] rounded-xl border border-line bg-surface p-5 shadow-xl sm:p-6" role="dialog">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-[24px] text-ink" id="account-dialog-title">Add account</h2>
+            <p className="mt-1 text-sm text-muted">Add a balance to your overview.</p>
+          </div>
+          <button aria-label="Close dialog" className="icon-button size-8" onClick={onClose} type="button"><X size={16} /></button>
+        </div>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <label className="block text-sm font-medium text-ink" htmlFor="account-name">
+            Account name
+            <input autoFocus className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/15" id="account-name" maxLength={80} onChange={(event) => setName(event.target.value)} required value={name} />
+          </label>
+          <label className="block text-sm font-medium text-ink" htmlFor="account-type">
+            Account type
+            <select className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="account-type" onChange={(event) => setType(event.target.value)} value={type}>
+              <option value="bank">Bank</option>
+              <option value="ewallet">E-wallet</option>
+              <option value="investment">Investment</option>
+              <option value="credit_card">Credit card</option>
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-ink" htmlFor="account-balance">
+            Current balance
+            <input className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="account-balance" onChange={(event) => setBalance(event.target.value)} required step="0.01" type="number" value={balance} />
+            <span className="mt-1 block text-xs font-normal text-muted">For credit cards, enter the amount owed as a positive number.</span>
+          </label>
+          {error && <p className="rounded-md bg-secondary-soft px-3 py-2.5 text-sm text-ink" role="alert">{error}</p>}
+          <button className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60" disabled={submitting} type="submit">
+            {submitting ? "Saving..." : "Save account"}
+          </button>
+        </form>
+      </section>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabase);
   const [dashboardState, setDashboardState] = useState<DashboardState | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
+  const [showAccountDialog, setShowAccountDialog] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -474,15 +563,26 @@ export default function DashboardPage() {
               <h1 className="font-display text-[34px] leading-tight text-ink sm:text-[40px]" id="overview-heading">Overview</h1>
               <p className="mt-2 text-sm text-muted">A little progress, every day.</p>
             </div>
-            <button
-              className="inline-flex h-11 items-center justify-center gap-2 self-start rounded-lg bg-accent px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-50 sm:self-auto"
-              disabled={!currentData || Boolean(currentData.error)}
-              onClick={() => setShowTransactionDialog(true)}
-              type="button"
-            >
-              <Plus size={17} strokeWidth={2.2} />
-              Add transaction
-            </button>
+            <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+              <button
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink transition hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-50"
+                disabled={!currentData || Boolean(currentData.error)}
+                onClick={() => setShowAccountDialog(true)}
+                type="button"
+              >
+                <Wallet size={16} strokeWidth={1.9} />
+                Add account
+              </button>
+              <button
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-white shadow-sm transition hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-50"
+                disabled={!currentData || Boolean(currentData.error)}
+                onClick={() => setShowTransactionDialog(true)}
+                type="button"
+              >
+                <Plus size={17} strokeWidth={2.2} />
+                Add transaction
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3" id="accounts">
@@ -571,6 +671,14 @@ export default function DashboardPage() {
           accounts={accounts}
           client={supabase}
           onClose={() => setShowTransactionDialog(false)}
+          onSaved={() => setRefreshToken((value) => value + 1)}
+          userId={session.user.id}
+        />
+      )}
+      {showAccountDialog && currentData && !currentData.error && (
+        <AddAccountDialog
+          client={supabase}
+          onClose={() => setShowAccountDialog(false)}
           onSaved={() => setRefreshToken((value) => value + 1)}
           userId={session.user.id}
         />
