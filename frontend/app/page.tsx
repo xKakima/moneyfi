@@ -418,7 +418,7 @@ function AddAccountDialog({
 }) {
   const [name, setName] = useState("");
   const [type, setType] = useState("bank");
-  const [balance, setBalance] = useState("0");
+  const [balance, setBalance] = useState("");
   const [currency, setCurrency] = useState("PHP");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

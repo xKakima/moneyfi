@@ -12,6 +12,7 @@ function formatAmount(value: string) {
   const fraction = hasDecimal ? unsigned.slice(decimalIndex + 1).replace(/\D/g, "") : "";
 
   if (!integer && hasDecimal) integer = "0";
+  integer = integer.replace(/^0+(?=\d)/, "");
   const groupedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `${negative ? "-" : ""}${groupedInteger}${hasDecimal ? `.${fraction}` : ""}`;
 }
@@ -63,7 +64,7 @@ export function AmountInput({
       ref={inputRef}
       required={required}
       type="text"
-      value={value}
+      value={formatAmount(value)}
     />
   );
 }
