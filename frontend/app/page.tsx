@@ -9,7 +9,6 @@ import {
   CreditCard,
   Leaf,
   LogOut,
-  Menu,
   Moon,
   Plus,
   Sun,
@@ -124,7 +123,6 @@ function ThemeToggle() {
 
 function DashboardHeader({ email, onSignOut }: { email?: string; onSignOut?: () => void }) {
   const initial = email?.trim().charAt(0).toUpperCase() || "A";
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <header className="relative border-b border-line bg-surface/85">
@@ -145,11 +143,6 @@ function DashboardHeader({ email, onSignOut }: { email?: string; onSignOut?: () 
         )}
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {email && (
-            <button aria-expanded={mobileMenuOpen} aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"} className="icon-button md:hidden" onClick={() => setMobileMenuOpen((open) => !open)} type="button">
-              {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-            </button>
-          )}
           <ThemeToggle />
           {email && onSignOut && (
             <>
@@ -170,14 +163,14 @@ function DashboardHeader({ email, onSignOut }: { email?: string; onSignOut?: () 
             </>
           )}
         </div>
-        {email && mobileMenuOpen && (
-          <nav aria-label="Mobile navigation" className="absolute left-0 right-0 top-[72px] z-40 border-b border-line bg-surface px-5 py-3 shadow-md md:hidden">
-            <Link className="block rounded-md px-3 py-2.5 text-sm font-medium text-ink hover:bg-raised" href="/" onClick={() => setMobileMenuOpen(false)}>Overview</Link>
-            <Link className="block rounded-md px-3 py-2.5 text-sm font-medium text-ink hover:bg-raised" href="/transactions" onClick={() => setMobileMenuOpen(false)}>Transactions</Link>
-            <Link className="block rounded-md px-3 py-2.5 text-sm font-medium text-ink hover:bg-raised" href="/accounts" onClick={() => setMobileMenuOpen(false)}>Accounts</Link>
-          </nav>
-        )}
       </div>
+      {email && (
+        <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-3 border-t border-line px-5 sm:px-8 md:hidden">
+          <Link aria-current="page" className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" href="/">Overview</Link>
+          <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/transactions">Transactions</Link>
+          <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/accounts">Accounts</Link>
+        </nav>
+      )}
     </header>
   );
 }
@@ -688,7 +681,7 @@ export default function DashboardPage() {
             {metrics.map((metric, index) => {
               const Icon = metric.icon;
               return (
-                <article className="dashboard-enter rounded-xl border border-line bg-surface p-5 shadow-[0_2px_12px_rgba(45,55,45,0.025)] transition-colors sm:p-6" key={metric.label} style={{ animationDelay: `${index * 80}ms` }}>
+                <Link aria-label={`${metric.label}: view accounts`} className="dashboard-enter group rounded-xl border border-line bg-surface p-5 shadow-[0_2px_12px_rgba(45,55,45,0.025)] transition-colors hover:border-accent/50 hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:p-6" href="/accounts" key={metric.label} style={{ animationDelay: `${index * 80}ms` }}>
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-medium text-muted">{metric.label}</p>
@@ -704,10 +697,11 @@ export default function DashboardPage() {
                     </div>
                     <span className={`metric-icon metric-icon-${metric.tone}`}><Icon size={19} strokeWidth={1.8} /></span>
                   </div>
-                  <p className="mt-5 text-xs text-muted">
-                    {currentData && !currentData.error ? `${metric.accounts.length} linked ${metric.accounts.length === 1 ? "account" : "accounts"}` : "Loading accounts..."}
+                  <p className="mt-5 flex items-center justify-between gap-2 text-xs text-muted">
+                    <span>{currentData && !currentData.error ? `${metric.accounts.length} linked ${metric.accounts.length === 1 ? "account" : "accounts"}` : "Loading accounts..."}</span>
+                    <span className="font-semibold text-accent">View accounts</span>
                   </p>
-                </article>
+                </Link>
               );
             })}
           </div>

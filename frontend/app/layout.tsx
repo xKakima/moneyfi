@@ -5,6 +5,12 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Moneyfi | Your money, in bloom",
   description: "A calm, clear view of your personal finances.",
+  applicationName: "Moneyfi",
+  appleWebApp: {
+    capable: true,
+    title: "Moneyfi",
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

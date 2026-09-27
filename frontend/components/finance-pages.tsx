@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeft, ArrowUpRight, Banknote, Check, CreditCard, Leaf, LogOut, Menu, Moon, Pencil, Search, Sun, Trash2, TrendingUp, Wallet, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Banknote, Check, CreditCard, Leaf, LogOut, Moon, Pencil, Search, Sun, Trash2, TrendingUp, Wallet, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
@@ -23,7 +23,6 @@ function ThemeButton() {
 }
 
 function Header({ session, kind }: { session: Session | null; kind: PageKind }) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   return (
     <header className="relative border-b border-line bg-surface/85">
       <div className="mx-auto flex h-[72px] max-w-[1320px] items-center justify-between px-5 sm:px-8 lg:px-12">
@@ -37,12 +36,15 @@ function Header({ session, kind }: { session: Session | null; kind: PageKind }) 
           <Link aria-current={kind === "accounts" ? "page" : undefined} className={kind === "accounts" ? "text-ink" : "text-muted transition-colors hover:text-ink"} href="/accounts">Accounts</Link>
         </nav>
         <div className="flex items-center gap-2">
-          <button aria-expanded={mobileMenuOpen} aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"} className="icon-button md:hidden" onClick={() => setMobileMenuOpen((open) => !open)} type="button">{mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}</button>
           <ThemeButton />
           {session && supabase && <button aria-label="Sign out" className="icon-button" onClick={() => { void supabase.auth.signOut(); }} title="Sign out" type="button"><LogOut size={17} /></button>}
         </div>
-        {mobileMenuOpen && <nav aria-label="Mobile navigation" className="absolute left-0 right-0 top-[72px] z-40 border-b border-line bg-surface px-5 py-3 shadow-md md:hidden"><Link className="block rounded-md px-3 py-2.5 text-sm font-medium text-ink hover:bg-raised" href="/" onClick={() => setMobileMenuOpen(false)}>Overview</Link><Link className="block rounded-md px-3 py-2.5 text-sm font-medium text-ink hover:bg-raised" href="/transactions" onClick={() => setMobileMenuOpen(false)}>Transactions</Link><Link className="block rounded-md px-3 py-2.5 text-sm font-medium text-ink hover:bg-raised" href="/accounts" onClick={() => setMobileMenuOpen(false)}>Accounts</Link></nav>}
       </div>
+      {session && <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-3 border-t border-line px-5 sm:px-8 md:hidden">
+        <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/">Overview</Link>
+        <Link aria-current={kind === "transactions" ? "page" : undefined} className={kind === "transactions" ? "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" : "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink"} href="/transactions">Transactions</Link>
+        <Link aria-current={kind === "accounts" ? "page" : undefined} className={kind === "accounts" ? "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" : "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink"} href="/accounts">Accounts</Link>
+      </nav>}
     </header>
   );
 }
