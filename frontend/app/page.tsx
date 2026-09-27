@@ -7,10 +7,13 @@ import {
   CircleHelp,
   Check,
   CreditCard,
+  Eye,
+  EyeOff,
   Leaf,
   LogOut,
   Moon,
   Plus,
+  Share2,
   Sun,
   TrendingUp,
   Wallet,
@@ -21,6 +24,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { AmountInput } from "@/components/amount-input";
+import { ShareViewDialog } from "@/components/share-view-dialog";
 import { useTheme } from "@/components/theme-provider";
 import { currencyOptions, formatCurrency, isValidCurrencyCode } from "@/lib/currency";
 import { getSupabaseBrowserClient, getSupabaseConfigurationError } from "@/lib/supabase/client";
@@ -180,6 +184,7 @@ function AuthPanel({ client }: { client: SupabaseClient }) {
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -228,19 +233,30 @@ function AuthPanel({ client }: { client: SupabaseClient }) {
             value={email}
           />
         </label>
-        <label className="block text-sm font-medium text-ink" htmlFor="auth-password">
-          Password
-          <input
-            autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-            className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
-            id="auth-password"
-            minLength={mode === "sign-up" ? 12 : 6}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            type="password"
-            value={password}
-          />
-        </label>
+        <div>
+          <label className="block text-sm font-medium text-ink" htmlFor="auth-password">Password</label>
+          <div className="relative mt-1.5">
+            <input
+              autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+              className="h-11 w-full rounded-md border border-line bg-canvas px-3 pr-12 text-sm text-ink outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/15"
+              id="auth-password"
+              minLength={mode === "sign-up" ? 12 : 6}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              type={passwordVisible ? "text" : "password"}
+              value={password}
+            />
+            <button
+              aria-label={passwordVisible ? "Hide password" : "Show password"}
+              className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full text-muted hover:bg-raised hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+              onClick={() => setPasswordVisible((visible) => !visible)}
+              title={passwordVisible ? "Hide password" : "Show password"}
+              type="button"
+            >
+              {passwordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+        </div>
         {error && <p className="rounded-md bg-secondary-soft px-3 py-2.5 text-sm text-ink" role="alert">{error}</p>}
         {message && <p className="rounded-md bg-accent-soft px-3 py-2.5 text-sm text-ink" role="status">{message}</p>}
         <button
@@ -511,6 +527,7 @@ export default function DashboardPage() {
   const [refreshToken, setRefreshToken] = useState(0);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
   const [showAccountDialog, setShowAccountDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [saveConfirmation, setSaveConfirmation] = useState<string | null>(null);
 
   useEffect(() => {
@@ -660,6 +677,15 @@ export default function DashboardPage() {
               <button
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink transition hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-50"
                 disabled={!currentData || Boolean(currentData.error)}
+                onClick={() => setShowShareDialog(true)}
+                type="button"
+              >
+                <Share2 size={16} strokeWidth={1.9} />
+                Share view
+              </button>
+              <button
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink transition hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-50"
+                disabled={!currentData || Boolean(currentData.error)}
                 onClick={() => setShowAccountDialog(true)}
                 type="button"
               >
@@ -788,6 +814,13 @@ export default function DashboardPage() {
             setRefreshToken((value) => value + 1);
             setSaveConfirmation("Account saved.");
           }}
+          userId={session.user.id}
+        />
+      )}
+      {showShareDialog && currentData && !currentData.error && (
+        <ShareViewDialog
+          client={supabase}
+          onClose={() => setShowShareDialog(false)}
           userId={session.user.id}
         />
       )}

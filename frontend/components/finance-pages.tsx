@@ -68,13 +68,22 @@ function AccountList({
   onChanged: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [currencyFilter, setCurrencyFilter] = useState("all");
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [editingBalance, setEditingBalance] = useState("");
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<string | null>(null);
-  const filtered = accounts.filter((account) => `${account.name} ${account.type} ${account.currency}`.toLowerCase().includes(search.toLowerCase()));
+  const currencies = Array.from(new Set(accounts.map((account) => account.currency || "USD"))).sort();
+  const filtered = accounts.filter((account) => {
+    const matchesSearch = `${account.name} ${account.type} ${account.currency}`.toLowerCase().includes(search.trim().toLowerCase());
+    const matchesType = typeFilter === "all" || account.type === typeFilter;
+    const matchesCurrency = currencyFilter === "all" || (account.currency || "USD") === currencyFilter;
+    return matchesSearch && matchesType && matchesCurrency;
+  });
+  const hasActiveFilters = Boolean(search.trim()) || typeFilter !== "all" || currencyFilter !== "all";
   const grouped = new Map<string, number>();
   for (const account of accounts) {
     const currency = account.currency || "USD";
@@ -158,11 +167,27 @@ function AccountList({
         </div></div>
       </div>
       <section className="overflow-hidden rounded-xl border border-line bg-surface">
-        <div className="flex flex-col gap-3 border-b border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div><h2 className="font-display text-[21px] text-ink">All accounts</h2><p className="mt-1 text-xs text-muted">Balances shown in each account’s own currency</p></div>
-          <label className="relative block sm:w-64"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} /><input aria-label="Search accounts" className="h-10 w-full rounded-md border border-line bg-canvas pl-9 pr-3 text-sm text-ink outline-none focus:border-accent" onChange={(event) => setSearch(event.target.value)} placeholder="Search accounts" value={search} /></label>
+        <div className="border-b border-line px-5 py-4 sm:px-6">
+          <div className="flex flex-col gap-3">
+            <div><h2 className="font-display text-[21px] text-ink">All accounts</h2><p className="mt-1 text-xs text-muted">Balances shown in each account’s own currency</p></div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(11rem,0.7fr)_minmax(10rem,0.6fr)]">
+              <label className="relative block"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} /><input aria-label="Search accounts" className="h-10 w-full rounded-md border border-line bg-canvas pl-9 pr-3 text-sm text-ink outline-none focus:border-accent" onChange={(event) => setSearch(event.target.value)} placeholder="Search accounts" value={search} /></label>
+              <select aria-label="Filter by account type" className="h-10 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink outline-none focus:border-accent" onChange={(event) => setTypeFilter(event.target.value)} value={typeFilter}>
+                <option value="all">All account types</option>
+                {Object.entries(accountLabels).map(([type, label]) => <option key={type} value={type}>{label}</option>)}
+              </select>
+              <select aria-label="Filter by currency" className="h-10 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink outline-none focus:border-accent" onChange={(event) => setCurrencyFilter(event.target.value)} value={currencyFilter}>
+                <option value="all">All currencies</option>
+                {currencies.map((currency) => <option key={currency} value={currency}>{currency}</option>)}
+              </select>
+            </div>
+            <div className="flex min-h-5 items-center justify-between gap-3 text-xs text-muted">
+              <span>{loading ? "Loading accounts..." : `Showing ${filtered.length} of ${accounts.length} accounts`}</span>
+              {hasActiveFilters && <button className="font-semibold text-accent hover:underline" onClick={() => { setSearch(""); setTypeFilter("all"); setCurrencyFilter("all"); }} type="button">Clear filters</button>}
+            </div>
+          </div>
         </div>
-        {loading ? <EmptyState title="Loading accounts" detail="Fetching your accounts from Supabase." /> : filtered.length === 0 ? <EmptyState title={accounts.length ? "No matching accounts" : "No accounts yet"} detail={accounts.length ? "Try another search." : "Add an account from your overview to see it listed here."} /> : (
+        {loading ? <EmptyState title="Loading accounts" detail="Fetching your accounts from Supabase." /> : filtered.length === 0 ? <EmptyState title={accounts.length ? "No matching accounts" : "No accounts yet"} detail={accounts.length ? "Clear filters or adjust your search." : "Add an account from your overview to see it listed here."} /> : (
           <ul className="divide-y divide-line">{filtered.map((account) => {
             const Icon = account.type === "investment" ? TrendingUp : account.type === "credit_card" ? CreditCard : Wallet;
             return (
