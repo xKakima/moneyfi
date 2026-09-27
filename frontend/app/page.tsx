@@ -20,6 +20,7 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import { AmountInput } from "@/components/amount-input";
 import { useTheme } from "@/components/theme-provider";
 import { currencyOptions, formatCurrency, isValidCurrencyCode } from "@/lib/currency";
 import { getSupabaseBrowserClient, getSupabaseConfigurationError } from "@/lib/supabase/client";
@@ -425,7 +426,7 @@ function AddAccountDialog({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const openingBalance = Number(balance);
+    const openingBalance = Number(balance.replace(/,/g, ""));
     if (!Number.isFinite(openingBalance)) {
       setError("Enter a valid opening balance.");
       return;
@@ -490,7 +491,7 @@ function AddAccountDialog({
           </label>
           <label className="block text-sm font-medium text-ink" htmlFor="account-balance">
             Current balance
-            <input className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="account-balance" onChange={(event) => setBalance(event.target.value)} required step="0.01" type="number" value={balance} />
+            <AmountInput className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="account-balance" onChange={setBalance} required value={balance} />
             <span className="mt-1 block text-xs font-normal text-muted">For credit cards, enter the amount owed as a positive number.</span>
           </label>
           {error && <p className="rounded-md bg-secondary-soft px-3 py-2.5 text-sm text-ink" role="alert">{error}</p>}

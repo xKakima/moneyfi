@@ -4,6 +4,7 @@ import { ArrowDownLeft, ArrowUpRight, Banknote, Check, CreditCard, Leaf, LogOut,
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import { AmountInput } from "@/components/amount-input";
 import { useTheme } from "@/components/theme-provider";
 import { currencyOptions, formatCurrency, isValidCurrencyCode } from "@/lib/currency";
 import { getSupabaseBrowserClient, getSupabaseConfigurationError } from "@/lib/supabase/client";
@@ -68,6 +69,7 @@ function AccountList({
 }) {
   const [search, setSearch] = useState("");
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [editingBalance, setEditingBalance] = useState("");
   const [deletingAccount, setDeletingAccount] = useState<Account | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -100,7 +102,7 @@ function AccountList({
     const formData = new FormData(event.currentTarget);
     const name = String(formData.get("name") ?? "").trim();
     const type = String(formData.get("type") ?? "");
-    const balance = Number(formData.get("balance"));
+    const balance = Number(String(formData.get("balance") ?? "").replace(/,/g, ""));
     const currency = String(formData.get("currency") ?? "").toUpperCase();
     if (!name || !Number.isFinite(balance) || !isValidCurrencyCode(currency)) {
       setActionError("Enter an account name, a valid balance, and a valid three-letter currency code.");
@@ -169,7 +171,7 @@ function AccountList({
                 <div className="min-w-0"><p className="truncate text-sm font-semibold text-ink">{account.name}</p><p className="mt-1 text-xs text-muted">{accountLabels[account.type] ?? account.type} · {account.currency || "USD"}</p></div>
                 <p className="text-right text-sm font-semibold text-ink">{formatCurrency(Number(account.balance || 0), account.currency || "USD")}</p>
                 <div className="col-span-3 flex justify-end gap-1 sm:col-span-1">
-                  <button aria-label={`Edit ${account.name}`} className="icon-button size-9" onClick={() => { setActionError(null); setEditingAccount(account); }} title="Edit account" type="button"><Pencil size={16} /></button>
+                  <button aria-label={`Edit ${account.name}`} className="icon-button size-9" onClick={() => { setActionError(null); setEditingBalance(String(account.balance)); setEditingAccount(account); }} title="Edit account" type="button"><Pencil size={16} /></button>
                   <button aria-label={`Delete ${account.name}`} className="icon-button size-9 text-secondary" onClick={() => { setActionError(null); setDeletingAccount(account); }} title="Delete account" type="button"><Trash2 size={16} /></button>
                 </div>
               </li>
@@ -185,7 +187,7 @@ function AccountList({
               <label className="block text-sm font-medium text-ink" htmlFor="edit-account-name">Account name<input autoFocus className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" defaultValue={editingAccount.name} id="edit-account-name" maxLength={80} name="name" required /></label>
               <label className="block text-sm font-medium text-ink" htmlFor="edit-account-type">Account type<select className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" defaultValue={editingAccount.type} id="edit-account-type" name="type"><option value="bank">Bank</option><option value="ewallet">E-wallet</option><option value="investment">Investment</option><option value="credit_card">Credit card</option></select></label>
               <label className="block text-sm font-medium text-ink" htmlFor="edit-account-currency">Currency<input autoCapitalize="characters" className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm uppercase text-ink" defaultValue={editingAccount.currency || "USD"} id="edit-account-currency" list="edit-account-currency-options" maxLength={3} name="currency" pattern="[A-Za-z]{3}" required /><datalist id="edit-account-currency-options">{currencyOptions.map(([code, name]) => <option key={code} label={`${code} - ${name}`} value={code} />)}</datalist><span className="mt-1 block text-xs font-normal text-muted">Use a three-letter ISO currency code.</span></label>
-              <label className="block text-sm font-medium text-ink" htmlFor="edit-account-balance">Current balance<input className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" defaultValue={Number(editingAccount.balance)} id="edit-account-balance" name="balance" required step="0.01" type="number" /></label>
+              <label className="block text-sm font-medium text-ink" htmlFor="edit-account-balance">Current balance<AmountInput className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="edit-account-balance" name="balance" onChange={setEditingBalance} required value={editingBalance} /></label>
               {actionError && <p className="rounded-md bg-secondary-soft px-3 py-2.5 text-sm text-ink" role="alert">{actionError}</p>}
               <button className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-white disabled:opacity-60" disabled={submitting} type="submit">{submitting ? "Saving..." : "Save changes"}</button>
             </form>
