@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeft, ArrowUpRight, Banknote, Check, CreditCard, Leaf, LogOut, Moon, Pencil, Search, Sun, Trash2, TrendingUp, Wallet, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Banknote, Check, CreditCard, Landmark, Leaf, LogOut, Moon, Pencil, Search, Sun, Trash2, TrendingUp, Wallet, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
@@ -15,7 +15,7 @@ type PageKind = "accounts" | "transactions";
 
 const supabase = getSupabaseBrowserClient();
 const configurationError = getSupabaseConfigurationError();
-const accountLabels: Record<string, string> = { bank: "Bank", ewallet: "E-wallet", investment: "Investment", credit_card: "Credit card" };
+const accountLabels: Record<string, string> = { bank: "Bank", ewallet: "E-wallet", investment: "Investment", benefit: "Benefits & contributions", credit_card: "Credit card" };
 
 function ThemeButton() {
   const { theme, toggleTheme } = useTheme();
@@ -189,7 +189,7 @@ function AccountList({
         </div>
         {loading ? <EmptyState title="Loading accounts" detail="Fetching your accounts from Supabase." /> : filtered.length === 0 ? <EmptyState title={accounts.length ? "No matching accounts" : "No accounts yet"} detail={accounts.length ? "Clear filters or adjust your search." : "Add an account from your overview to see it listed here."} /> : (
           <ul className="divide-y divide-line">{filtered.map((account) => {
-            const Icon = account.type === "investment" ? TrendingUp : account.type === "credit_card" ? CreditCard : Wallet;
+            const Icon = account.type === "investment" ? TrendingUp : account.type === "benefit" ? Landmark : account.type === "credit_card" ? CreditCard : Wallet;
             return (
               <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-4 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:gap-4 sm:px-6" key={account.id}>
                 <span className="flex size-10 items-center justify-center rounded-lg bg-accent-soft text-accent"><Icon size={19} /></span>
@@ -210,7 +210,7 @@ function AccountList({
             <div className="mb-5 flex items-start justify-between gap-4"><div><h2 className="font-display text-[24px] text-ink" id="edit-account-title">Edit account</h2><p className="mt-1 text-sm text-muted">Update the name, type, currency, or current balance.</p></div><button aria-label="Close dialog" className="icon-button size-8" disabled={submitting} onClick={closeDialogs} type="button"><X size={16} /></button></div>
             <form className="space-y-4" onSubmit={(event) => { void saveAccount(event); }}>
               <label className="block text-sm font-medium text-ink" htmlFor="edit-account-name">Account name<input autoFocus className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" defaultValue={editingAccount.name} id="edit-account-name" maxLength={80} name="name" required /></label>
-              <label className="block text-sm font-medium text-ink" htmlFor="edit-account-type">Account type<select className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" defaultValue={editingAccount.type} id="edit-account-type" name="type"><option value="bank">Bank</option><option value="ewallet">E-wallet</option><option value="investment">Investment</option><option value="credit_card">Credit card</option></select></label>
+              <label className="block text-sm font-medium text-ink" htmlFor="edit-account-type">Account type<select className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" defaultValue={editingAccount.type} id="edit-account-type" name="type"><option value="bank">Bank</option><option value="ewallet">E-wallet</option><option value="investment">Investment</option><option value="benefit">Benefits &amp; contributions</option><option value="credit_card">Credit card</option></select></label>
               <label className="block text-sm font-medium text-ink" htmlFor="edit-account-currency">Currency<input autoCapitalize="characters" className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm uppercase text-ink" defaultValue={editingAccount.currency || "USD"} id="edit-account-currency" list="edit-account-currency-options" maxLength={3} name="currency" pattern="[A-Za-z]{3}" required /><datalist id="edit-account-currency-options">{currencyOptions.map(([code, name]) => <option key={code} label={`${code} - ${name}`} value={code} />)}</datalist><span className="mt-1 block text-xs font-normal text-muted">Use a three-letter ISO currency code.</span></label>
               <label className="block text-sm font-medium text-ink" htmlFor="edit-account-balance">Current balance<AmountInput className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="edit-account-balance" name="balance" onChange={setEditingBalance} required value={editingBalance} /></label>
               {actionError && <p className="rounded-md bg-secondary-soft px-3 py-2.5 text-sm text-ink" role="alert">{actionError}</p>}

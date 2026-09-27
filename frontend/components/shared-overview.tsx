@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, Leaf, TrendingUp, Wallet } from "lucide-react";
+import { CreditCard, Landmark, Leaf, TrendingUp, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatCurrency } from "@/lib/currency";
@@ -12,6 +12,7 @@ type SharedAccount = { name: string; type: string; balance: number | string; cur
 type SharedOverviewData = {
   cash: SharedTotal[];
   investments: SharedTotal[];
+  contributions: SharedTotal[];
   credit_debt: SharedTotal[];
   accounts: SharedAccount[] | null;
   accounts_require_sign_in: boolean;
@@ -20,7 +21,7 @@ type SharedOverviewData = {
 const supabase = getSupabaseBrowserClient();
 const configurationError = getSupabaseConfigurationError();
 const validTokenPattern = /^[0-9a-f]{64}$/;
-const accountLabels: Record<string, string> = { bank: "Bank", ewallet: "E-wallet", investment: "Investment", credit_card: "Credit card" };
+const accountLabels: Record<string, string> = { bank: "Bank", ewallet: "E-wallet", investment: "Investment", benefit: "Benefits & contributions", credit_card: "Credit card" };
 
 export function SharedOverview({ token }: { token: string }) {
   const validToken = validTokenPattern.test(token);
@@ -56,6 +57,7 @@ export function SharedOverview({ token }: { token: string }) {
   const metrics = overview ? [
     { label: "Cash & savings", totals: overview.cash, icon: Wallet, tone: "green" },
     { label: "Investments", totals: overview.investments, icon: TrendingUp, tone: "pink" },
+    { label: "Benefits & contributions", totals: overview.contributions, icon: Landmark, tone: "green" },
     { label: "Credit debt", totals: overview.credit_debt, icon: CreditCard, tone: "blue" },
   ] : [];
 
@@ -86,7 +88,7 @@ export function SharedOverview({ token }: { token: string }) {
           </section>
         ) : overview && (
           <>
-            <section aria-label="Shared financial totals" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <section aria-label="Shared financial totals" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {metrics.map(({ label, totals, icon: Icon, tone }) => (
                 <article className="rounded-xl border border-line bg-surface p-5 shadow-[0_2px_12px_rgba(45,55,45,0.025)] sm:p-6" key={label}>
                   <div className="flex items-start justify-between gap-3">

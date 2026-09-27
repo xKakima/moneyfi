@@ -9,6 +9,7 @@ import {
   CreditCard,
   Eye,
   EyeOff,
+  Landmark,
   Leaf,
   LogOut,
   Moon,
@@ -20,7 +21,7 @@ import {
   X,
 } from "lucide-react";
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { AmountInput } from "@/components/amount-input";
@@ -58,6 +59,35 @@ type DashboardState = {
 const supabase = getSupabaseBrowserClient();
 const configurationError = getSupabaseConfigurationError();
 const currencyListId = "moneyfi-currency-list";
+const BENEFITS_VISIBILITY_EVENT = "moneyfi-benefits-visibility";
+
+function useBenefitsVisibility(userId: string | undefined) {
+  const storageKey = userId ? `moneyfi-benefits-visible:${userId}` : null;
+  const visible = useSyncExternalStore(
+    (onChange) => {
+      if (!storageKey) return () => {};
+      const handleStorage = (event: StorageEvent) => {
+        if (event.key === storageKey) onChange();
+      };
+      window.addEventListener("storage", handleStorage);
+      window.addEventListener(BENEFITS_VISIBILITY_EVENT, onChange);
+      return () => {
+        window.removeEventListener("storage", handleStorage);
+        window.removeEventListener(BENEFITS_VISIBILITY_EVENT, onChange);
+      };
+    },
+    () => !storageKey || window.localStorage.getItem(storageKey) !== "false",
+    () => true,
+  );
+
+  function setVisible(nextValue: boolean) {
+    if (!storageKey) return;
+    window.localStorage.setItem(storageKey, String(nextValue));
+    window.dispatchEvent(new Event(BENEFITS_VISIBILITY_EVENT));
+  }
+
+  return { visible, setVisible };
+}
 
 function numericValue(value: number | string) {
   const parsedValue = Number(value);
@@ -498,6 +528,7 @@ function AddAccountDialog({
               <option value="bank">Bank</option>
               <option value="ewallet">E-wallet</option>
               <option value="investment">Investment</option>
+              <option value="benefit">Benefits &amp; contributions</option>
               <option value="credit_card">Credit card</option>
             </select>
           </label>
@@ -508,7 +539,7 @@ function AddAccountDialog({
           <label className="block text-sm font-medium text-ink" htmlFor="account-balance">
             Current balance
             <AmountInput className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="account-balance" onChange={setBalance} required value={balance} />
-            <span className="mt-1 block text-xs font-normal text-muted">For credit cards, enter the amount owed as a positive number.</span>
+            <span className="mt-1 block text-xs font-normal text-muted">{type === "benefit" ? "Enter your total contributions to date, such as SSS, PhilHealth, or Pag-IBIG." : "For credit cards, enter the amount owed as a positive number."}</span>
           </label>
           {error && <p className="rounded-md bg-secondary-soft px-3 py-2.5 text-sm text-ink" role="alert">{error}</p>}
           <button className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60" disabled={submitting} type="submit">
@@ -529,6 +560,7 @@ export default function DashboardPage() {
   const [showAccountDialog, setShowAccountDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [saveConfirmation, setSaveConfirmation] = useState<string | null>(null);
+  const benefitsVisibility = useBenefitsVisibility(session?.user.id);
 
   useEffect(() => {
     if (!supabase) return;
@@ -634,6 +666,7 @@ export default function DashboardPage() {
   const transactions = currentData?.transactions ?? [];
   const cashAccounts = accounts.filter((account) => account.type === "bank" || account.type === "ewallet");
   const investmentAccounts = accounts.filter((account) => account.type === "investment");
+  const benefitAccounts = accounts.filter((account) => account.type === "benefit");
   const creditAccounts = accounts.filter((account) => account.type === "credit_card");
   const groupAccountTotals = (entries: AccountRow[], absolute = false) => {
     const totals = new Map<string, number>();
@@ -648,6 +681,7 @@ export default function DashboardPage() {
   const metrics = [
     { label: "Cash & savings", accounts: cashAccounts, totals: groupAccountTotals(cashAccounts), icon: Wallet, tone: "green" },
     { label: "Investments", accounts: investmentAccounts, totals: groupAccountTotals(investmentAccounts), icon: TrendingUp, tone: "pink" },
+    ...(benefitAccounts.length && benefitsVisibility.visible ? [{ label: "Benefits & contributions", accounts: benefitAccounts, totals: groupAccountTotals(benefitAccounts), icon: Landmark, tone: "green" }] : []),
     { label: "Credit debt", accounts: creditAccounts, totals: groupAccountTotals(creditAccounts, true), icon: CreditCard, tone: "blue" },
   ] as const;
   const accountNames = new Map(accounts.map((account) => [account.id, account.name]));
@@ -674,6 +708,19 @@ export default function DashboardPage() {
               <p className="mt-2 text-sm text-muted">A little progress, every day.</p>
             </div>
             <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+              {benefitAccounts.length > 0 && (
+                <button
+                  aria-label={benefitsVisibility.visible ? "Hide benefits summary" : "Show benefits summary"}
+                  aria-pressed={benefitsVisibility.visible}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink transition hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                  onClick={() => benefitsVisibility.setVisible(!benefitsVisibility.visible)}
+                  title={benefitsVisibility.visible ? "Hide benefits summary" : "Show benefits summary"}
+                  type="button"
+                >
+                  {benefitsVisibility.visible ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {benefitsVisibility.visible ? "Hide benefits" : "Show benefits"}
+                </button>
+              )}
               <button
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink transition hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-wait disabled:opacity-50"
                 disabled={!currentData || Boolean(currentData.error)}
@@ -704,7 +751,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3" id="accounts">
+          <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${benefitAccounts.length > 0 && benefitsVisibility.visible ? "xl:grid-cols-4" : "md:grid-cols-3"}`} id="accounts">
             {metrics.map((metric, index) => {
               const Icon = metric.icon;
               return (
