@@ -49,10 +49,19 @@ type TransactionRow = {
   created_at: string;
 };
 
+type BalanceSnapshot = {
+  id: string;
+  account_id: string;
+  balance: number | string;
+  currency: string;
+  created_at: string;
+};
+
 type DashboardState = {
   userId: string;
   accounts: AccountRow[];
   transactions: TransactionRow[];
+  snapshots: BalanceSnapshot[];
   error?: string;
 };
 
@@ -92,6 +101,10 @@ function useBenefitsVisibility(userId: string | undefined) {
 function numericValue(value: number | string) {
   const parsedValue = Number(value);
   return Number.isFinite(parsedValue) ? parsedValue : 0;
+}
+
+function percentageDifference(current: number, previous: number) {
+  return previous === 0 ? null : ((current - previous) / Math.abs(previous)) * 100;
 }
 
 function CurrencyCodeInput({
@@ -174,6 +187,7 @@ function DashboardHeader({ email, onSignOut }: { email?: string; onSignOut?: () 
             <Link className="text-ink" href="/">Overview</Link>
             <Link className="transition-colors hover:text-ink" href="/transactions">Transactions</Link>
             <Link className="transition-colors hover:text-ink" href="/accounts">Accounts</Link>
+            <Link className="transition-colors hover:text-ink" href="/planning">Planning</Link>
           </nav>
         )}
 
@@ -200,10 +214,11 @@ function DashboardHeader({ email, onSignOut }: { email?: string; onSignOut?: () 
         </div>
       </div>
       {email && (
-        <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-3 border-t border-line px-5 sm:px-8 md:hidden">
+        <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-4 border-t border-line px-5 sm:px-8 md:hidden">
           <Link aria-current="page" className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" href="/">Overview</Link>
           <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/transactions">Transactions</Link>
           <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/accounts">Accounts</Link>
+          <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/planning">Planning</Link>
         </nav>
       )}
     </header>
@@ -551,6 +566,103 @@ function AddAccountDialog({
   );
 }
 
+function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts: AccountRow[]; snapshots: BalanceSnapshot[]; transactions: TransactionRow[] }) {
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [range, setRange] = useState("90");
+  const accountId = accounts.some((account) => account.id === selectedAccountId) ? selectedAccountId : accounts[0]?.id ?? "";
+  const account = accounts.find((item) => item.id === accountId);
+  const accountHistory = snapshots
+    .filter((snapshot) => snapshot.account_id === accountId)
+    .sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime());
+  const latestSnapshot = accountHistory[accountHistory.length - 1];
+  const previousSnapshot = accountHistory[accountHistory.length - 2];
+  const latestChange = latestSnapshot && previousSnapshot
+    ? percentageDifference(numericValue(latestSnapshot.balance), numericValue(previousSnapshot.balance))
+    : null;
+  const accountTransactions = transactions.filter((transaction) => transaction.account_id === accountId && transaction.currency === account?.currency);
+  const latestTransaction = accountTransactions[0];
+  const previousTransaction = latestTransaction
+    ? accountTransactions.slice(1).find((transaction) => transaction.transaction_type === latestTransaction.transaction_type)
+    : undefined;
+  const transactionChange = latestTransaction && previousTransaction
+    ? percentageDifference(numericValue(latestTransaction.amount), numericValue(previousTransaction.amount))
+    : null;
+  const cutoff = range === "all" || !latestSnapshot
+    ? 0
+    : new Date(latestSnapshot.created_at).getTime() - Number(range) * 24 * 60 * 60 * 1000;
+  const visibleHistory = accountHistory.filter((snapshot) => new Date(snapshot.created_at).getTime() >= cutoff);
+  const values = visibleHistory.map((snapshot) => numericValue(snapshot.balance));
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
+  const padding = Math.max((maxValue - minValue) * 0.15, Math.abs(maxValue) * 0.02, 1);
+  const chartMin = minValue - padding;
+  const chartMax = maxValue + padding;
+  const chartWidth = 720;
+  const chartHeight = 220;
+  const chartInset = 18;
+  const points = visibleHistory.map((snapshot, index) => {
+    const x = visibleHistory.length === 1
+      ? chartWidth / 2
+      : chartInset + (index / (visibleHistory.length - 1)) * (chartWidth - chartInset * 2);
+    const y = chartHeight - chartInset - ((numericValue(snapshot.balance) - chartMin) / (chartMax - chartMin)) * (chartHeight - chartInset * 2);
+    return { snapshot, x, y };
+  });
+  const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
+
+  return (
+    <section aria-labelledby="movement-heading" className="mt-8 overflow-hidden rounded-xl border border-line bg-surface sm:mt-10">
+      <div className="flex flex-col gap-4 border-b border-line px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.1em] text-accent">Stats</p>
+          <h2 className="mt-1 font-display text-[21px] text-ink" id="movement-heading">Balance movement</h2>
+          <p className="mt-1 text-xs text-muted">Update an account balance when you check it; no need to log every purchase.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(10rem,1fr)_auto]">
+          <label className="sr-only" htmlFor="movement-account">Choose account</label>
+          <select className="h-10 min-w-0 rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="movement-account" onChange={(event) => setSelectedAccountId(event.target.value)} value={accountId}>
+            {accounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+          <div aria-label="Chart time range" className="grid grid-cols-5 overflow-hidden rounded-md border border-line" role="group">
+            {[ ["30", "1M"], ["90", "3M"], ["180", "6M"], ["365", "1Y"], ["all", "All"] ].map(([value, label]) => (
+              <button aria-pressed={range === value} className={`min-h-10 px-2 text-xs font-semibold ${range === value ? "bg-accent text-white" : "bg-surface text-muted hover:bg-raised"}`} key={value} onClick={() => setRange(value)} type="button">{label}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {!accounts.length ? (
+        <div className="px-5 py-10 text-center text-sm text-muted">Add an account to start tracking balance movement.</div>
+      ) : (
+        <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+          <div className="min-w-0">
+            {visibleHistory.length ? (
+              <>
+                <div className="mb-2 flex justify-between text-xs text-muted"><span>{formatCurrency(Math.min(...values), account?.currency || "USD")}</span><span>{formatCurrency(Math.max(...values), account?.currency || "USD")}</span></div>
+                <svg aria-label={`${account?.name ?? "Account"} balance history`} className="h-auto w-full overflow-visible" role="img" viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
+                  <title>{account?.name ?? "Account"} balance history</title>
+                  {[0, 1, 2, 3].map((line) => {
+                    const y = chartInset + (line / 3) * (chartHeight - chartInset * 2);
+                    return <line key={line} stroke="var(--line)" strokeDasharray="4 6" strokeWidth="1" x1={chartInset} x2={chartWidth - chartInset} y1={y} y2={y} />;
+                  })}
+                  {points.length > 1 && <polyline fill="none" points={linePoints} stroke="var(--accent)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />}
+                  {points.map(({ snapshot, x, y }) => <circle cx={x} cy={y} fill="var(--surface)" key={snapshot.id} r="5" stroke="var(--accent)" strokeWidth="3"><title>{`${new Date(snapshot.created_at).toLocaleDateString()} · ${formatCurrency(numericValue(snapshot.balance), snapshot.currency)}`}</title></circle>)}
+                </svg>
+                <div className="mt-1 flex justify-between text-xs text-muted"><span>{new Date(visibleHistory[0].created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span><span>{new Date(visibleHistory[visibleHistory.length - 1].created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span></div>
+              </>
+            ) : (
+              <div className="flex min-h-44 items-center justify-center border-y border-dashed border-line px-4 text-center text-sm text-muted">No balance checks in this period. Edit the account balance to record your first movement.</div>
+            )}
+          </div>
+          <div className="flex flex-row flex-wrap items-center justify-between gap-4 border-t border-line pt-4 lg:flex-col lg:items-start lg:justify-center lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+            <div><p className="text-xs text-muted">Current balance</p><p className="mt-1 font-display text-[22px] text-ink">{account ? formatCurrency(numericValue(account.balance), account.currency || "USD") : "—"}</p></div>
+            <div><p className="text-xs text-muted">Change since previous check</p>{latestSnapshot && previousSnapshot && latestChange !== null ? <p className={`mt-1 text-sm font-semibold ${latestChange > 0 ? "text-accent" : latestChange < 0 ? "text-secondary" : "text-muted"}`}>{latestChange > 0 ? "+" : ""}{latestChange.toFixed(1)}% <span className="font-normal text-muted">({formatCurrency(numericValue(latestSnapshot.balance) - numericValue(previousSnapshot.balance), account?.currency || "USD")})</span></p> : <p className="mt-1 text-sm text-muted">{latestSnapshot ? "First balance recorded" : "No history yet"}</p>}</div>
+            <div><p className="text-xs text-muted">Latest {latestTransaction?.transaction_type ?? "transaction"} vs previous</p>{latestTransaction && previousTransaction && transactionChange !== null ? <p className="mt-1 text-sm font-semibold text-ink">{transactionChange > 0 ? "+" : ""}{transactionChange.toFixed(1)}% <span className="font-normal text-muted">({formatCurrency(numericValue(latestTransaction.amount) - numericValue(previousTransaction.amount), latestTransaction.currency)})</span></p> : <p className="mt-1 text-sm text-muted">{latestTransaction ? "No comparable transaction" : "No transactions for this account"}</p>}</div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function DashboardPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabase);
@@ -594,15 +706,16 @@ export default function DashboardPage() {
 
     async function loadDashboard() {
       try {
-        const [accountResult, transactionResult] = await Promise.all([
+        const [accountResult, transactionResult, snapshotResult] = await Promise.all([
           client.from("accounts").select("id, name, type, balance, currency").eq("user_id", activeUserId),
-          client.from("transactions").select("id, amount, account_id, category, notes, transaction_type, currency, created_at").eq("user_id", activeUserId).order("created_at", { ascending: false }).limit(6),
+          client.from("transactions").select("id, amount, account_id, category, notes, transaction_type, currency, created_at").eq("user_id", activeUserId).order("created_at", { ascending: false }).limit(1000),
+          client.from("account_balance_snapshots").select("id, account_id, balance, currency, created_at").eq("user_id", activeUserId).order("created_at", { ascending: false }).limit(1000),
         ]);
 
         if (!active) return;
-        const queryError = accountResult.error ?? transactionResult.error;
+        const queryError = accountResult.error ?? transactionResult.error ?? snapshotResult.error;
         if (queryError) {
-          setDashboardState({ userId: activeUserId, accounts: [], transactions: [], error: queryError.message });
+          setDashboardState({ userId: activeUserId, accounts: [], transactions: [], snapshots: [], error: queryError.message });
           return;
         }
 
@@ -610,6 +723,7 @@ export default function DashboardPage() {
           userId: activeUserId,
           accounts: (accountResult.data ?? []) as AccountRow[],
           transactions: (transactionResult.data ?? []) as TransactionRow[],
+          snapshots: (snapshotResult.data ?? []) as BalanceSnapshot[],
         });
       } catch (queryError) {
         if (!active) return;
@@ -617,6 +731,7 @@ export default function DashboardPage() {
           userId: activeUserId,
           accounts: [],
           transactions: [],
+          snapshots: [],
           error: queryError instanceof Error ? queryError.message : "Unable to load your finance data.",
         });
       }
@@ -678,6 +793,13 @@ export default function DashboardPage() {
     return Array.from(totals, ([currency, value]) => ({ currency, value }))
       .sort((left, right) => left.currency === "PHP" ? -1 : right.currency === "PHP" ? 1 : left.currency.localeCompare(right.currency));
   };
+  const netWorthTotals = new Map<string, number>();
+  for (const account of accounts) {
+    const currency = account.currency || "USD";
+    const balance = numericValue(account.balance);
+    const netValue = account.type === "credit_card" ? -Math.abs(balance) : balance;
+    netWorthTotals.set(currency, (netWorthTotals.get(currency) ?? 0) + netValue);
+  }
   const metrics = [
     { label: "Cash & savings", accounts: cashAccounts, totals: groupAccountTotals(cashAccounts), icon: Wallet, tone: "green" },
     { label: "Investments", accounts: investmentAccounts, totals: groupAccountTotals(investmentAccounts), icon: TrendingUp, tone: "pink" },
@@ -779,7 +901,15 @@ export default function DashboardPage() {
               );
             })}
           </div>
+          <section aria-label="Estimated net worth by currency" className="mt-5 rounded-xl border border-line bg-surface px-5 py-4 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-6">
+            <div><h2 className="text-sm font-semibold text-ink">Estimated net worth</h2><p className="mt-1 text-xs text-muted">Assets minus credit-card balances; currencies are kept separate.</p></div>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 sm:mt-0">
+              {currentData && !currentData.error && accounts.length ? Array.from(netWorthTotals, ([currency, value]) => <p className="font-display text-xl text-ink" key={currency}>{formatCurrency(value, currency)}</p>) : <p className="font-display text-xl text-ink">—</p>}
+            </div>
+          </section>
         </section>
+
+        {currentData && !currentData.error && <BalanceMovementPanel accounts={accounts} snapshots={currentData.snapshots} transactions={transactions} />}
 
         <section aria-labelledby="activity-heading" className="mt-8 rounded-xl border border-line bg-surface sm:mt-10" id="activity">
           <div className="flex items-center justify-between border-b border-line px-5 py-5 sm:px-6">
@@ -807,7 +937,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <ul className="divide-y divide-line">
-              {transactions.map((transaction) => {
+              {transactions.slice(0, 6).map((transaction) => {
                 const isIncome = transaction.transaction_type === "income";
                 const amount = formatCurrency(Math.abs(numericValue(transaction.amount)), transaction.currency || "USD");
                 const title = transaction.category || transaction.notes || (isIncome ? "Income" : "Expense");

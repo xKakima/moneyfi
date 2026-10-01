@@ -5,13 +5,17 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { AmountInput } from "@/components/amount-input";
+import { PlanningWorkspace } from "@/components/planning-workspace";
 import { useTheme } from "@/components/theme-provider";
 import { currencyOptions, formatCurrency, isValidCurrencyCode } from "@/lib/currency";
 import { getSupabaseBrowserClient, getSupabaseConfigurationError } from "@/lib/supabase/client";
 
 type Account = { id: string; name: string; type: string; balance: number | string; currency: string };
 type Transaction = { id: string; amount: number | string; account_id: string | null; category: string | null; notes: string | null; transaction_type: string; currency: string; created_at: string };
-type PageKind = "accounts" | "transactions";
+type CategoryBudget = { id: string; category: string; currency: string; monthly_limit: number | string };
+type RecurringCashflow = { id: string; name: string; amount: number | string; transaction_type: "income" | "expense"; account_id: string | null; category: string | null; currency: string; frequency: "weekly" | "monthly" | "yearly"; next_due_date: string; active: boolean };
+type BudgetExpense = { amount: number | string; category: string | null; currency: string };
+type PageKind = "accounts" | "transactions" | "planning";
 
 const supabase = getSupabaseBrowserClient();
 const configurationError = getSupabaseConfigurationError();
@@ -35,16 +39,18 @@ function Header({ session, kind }: { session: Session | null; kind: PageKind }) 
           <Link className="text-muted transition-colors hover:text-ink" href="/">Overview</Link>
           <Link aria-current={kind === "transactions" ? "page" : undefined} className={kind === "transactions" ? "text-ink" : "text-muted transition-colors hover:text-ink"} href="/transactions">Transactions</Link>
           <Link aria-current={kind === "accounts" ? "page" : undefined} className={kind === "accounts" ? "text-ink" : "text-muted transition-colors hover:text-ink"} href="/accounts">Accounts</Link>
+          <Link aria-current={kind === "planning" ? "page" : undefined} className={kind === "planning" ? "text-ink" : "text-muted transition-colors hover:text-ink"} href="/planning">Planning</Link>
         </nav>
         <div className="flex items-center gap-2">
           <ThemeButton />
           {session && supabase && <button aria-label="Sign out" className="icon-button" onClick={() => { void supabase.auth.signOut(); }} title="Sign out" type="button"><LogOut size={17} /></button>}
         </div>
       </div>
-      {session && <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-3 border-t border-line px-5 sm:px-8 md:hidden">
+      {session && <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-4 border-t border-line px-5 sm:px-8 md:hidden">
         <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/">Overview</Link>
         <Link aria-current={kind === "transactions" ? "page" : undefined} className={kind === "transactions" ? "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" : "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink"} href="/transactions">Transactions</Link>
         <Link aria-current={kind === "accounts" ? "page" : undefined} className={kind === "accounts" ? "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" : "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink"} href="/accounts">Accounts</Link>
+        <Link aria-current={kind === "planning" ? "page" : undefined} className={kind === "planning" ? "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" : "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink"} href="/planning">Planning</Link>
       </nav>}
     </header>
   );
@@ -242,6 +248,15 @@ function TransactionList({ transactions, accounts, loading }: { transactions: Tr
     const searchable = `${transaction.category ?? ""} ${transaction.notes ?? ""} ${transaction.account_id ? accountNames.get(transaction.account_id) ?? "" : ""}`;
     return searchable.toLowerCase().includes(search.toLowerCase());
   });
+  const comparisonPercentages = new Map<string, number | null>();
+  const previousAmounts = new Map<string, number>();
+  for (const transaction of [...transactions].reverse()) {
+    const comparisonKey = `${transaction.account_id ?? "unassigned"}:${transaction.transaction_type}:${transaction.currency || "USD"}`;
+    const amount = Math.abs(Number(transaction.amount));
+    const previousAmount = previousAmounts.get(comparisonKey);
+    comparisonPercentages.set(transaction.id, previousAmount === undefined || previousAmount === 0 ? null : ((amount - previousAmount) / previousAmount) * 100);
+    previousAmounts.set(comparisonKey, amount);
+  }
 
   return (
     <section className="overflow-hidden rounded-xl border border-line bg-surface">
@@ -256,7 +271,8 @@ function TransactionList({ transactions, accounts, loading }: { transactions: Tr
         <ul className="divide-y divide-line">{filtered.map((transaction) => {
           const income = transaction.transaction_type === "income";
           const title = transaction.category || transaction.notes || (income ? "Income" : "Expense");
-          return <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-4 sm:gap-4 sm:px-6" key={transaction.id}><span className={`flex size-10 items-center justify-center rounded-full ${income ? "bg-accent-soft text-accent" : "bg-secondary-soft text-secondary"}`}>{income ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}</span><div className="min-w-0"><p className="truncate text-sm font-semibold text-ink">{title}</p><p className="mt-1 truncate text-xs text-muted">{new Date(transaction.created_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })}{transaction.account_id ? ` · ${accountNames.get(transaction.account_id) ?? "Account"}` : " · Unassigned"}</p></div><p className={`text-right text-sm font-semibold ${income ? "text-accent" : "text-ink"}`}>{income ? "+" : "−"}{formatCurrency(Math.abs(Number(transaction.amount)), transaction.currency || "USD")}</p></li>;
+          const percentage = comparisonPercentages.get(transaction.id);
+          return <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-4 sm:gap-4 sm:px-6" key={transaction.id}><span className={`flex size-10 items-center justify-center rounded-full ${income ? "bg-accent-soft text-accent" : "bg-secondary-soft text-secondary"}`}>{income ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}</span><div className="min-w-0"><p className="truncate text-sm font-semibold text-ink">{title}</p><p className="mt-1 truncate text-xs text-muted">{new Date(transaction.created_at).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })}{transaction.account_id ? ` · ${accountNames.get(transaction.account_id) ?? "Account"}` : " · Unassigned"}</p></div><div className="text-right"><p className={`text-sm font-semibold ${income ? "text-accent" : "text-ink"}`}>{income ? "+" : "−"}{formatCurrency(Math.abs(Number(transaction.amount)), transaction.currency || "USD")}</p>{percentage !== null && percentage !== undefined && <p className="mt-1 text-xs text-muted" title="Compared with the previous transaction for this account, type, and currency">{percentage > 0 ? "+" : ""}{percentage.toFixed(1)}% vs previous</p>}</div></li>;
         })}</ul>
       )}
       {!loading && transactions.length > 0 && <p className="border-t border-line px-5 py-3 text-xs text-muted sm:px-6">Showing {filtered.length} of {transactions.length} loaded transactions</p>}
@@ -269,6 +285,13 @@ export function FinanceDataPage({ kind }: { kind: PageKind }) {
   const [ready, setReady] = useState(!supabase);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
+  const [recurring, setRecurring] = useState<RecurringCashflow[]>([]);
+  const [monthExpenses, setMonthExpenses] = useState<BudgetExpense[]>([]);
+  const [monthLabel, setMonthLabel] = useState("");
+  const [today, setToday] = useState("");
+  const [planningLoadedUserId, setPlanningLoadedUserId] = useState<string | null>(null);
+  const [planningError, setPlanningError] = useState<string | null>(null);
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   const [errorState, setErrorState] = useState<{ userId: string; message: string } | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
@@ -303,8 +326,44 @@ export function FinanceDataPage({ kind }: { kind: PageKind }) {
     return () => { active = false; };
   }, [session?.user.id, refreshToken]);
 
-  const title = kind === "accounts" ? "Accounts" : "Transactions";
-  const description = kind === "accounts" ? "Your connected balances, organized by account." : "Search and filter your latest 1,000 money movements.";
+  useEffect(() => {
+    if (!supabase || !session?.user.id || kind !== "planning") return;
+    const client = supabase;
+    const userId = session.user.id;
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+    const monthName = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+    const todayValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    let active = true;
+
+    void Promise.all([
+      client.from("category_budgets").select("id, category, currency, monthly_limit").eq("user_id", userId).order("category"),
+      client.from("recurring_cashflows").select("id, name, amount, transaction_type, account_id, category, currency, frequency, next_due_date, active").eq("user_id", userId).order("next_due_date"),
+      client.from("transactions").select("amount, category, currency").eq("user_id", userId).eq("transaction_type", "expense").gte("created_at", monthStart).lt("created_at", nextMonthStart),
+    ]).then(([budgetResult, recurringResult, expenseResult]) => {
+      if (!active) return;
+      const queryError = budgetResult.error ?? recurringResult.error ?? expenseResult.error;
+      if (queryError) setPlanningError(queryError.message);
+      else {
+        setPlanningError(null);
+        setBudgets((budgetResult.data ?? []) as CategoryBudget[]);
+        setRecurring((recurringResult.data ?? []) as RecurringCashflow[]);
+        setMonthExpenses((expenseResult.data ?? []) as BudgetExpense[]);
+        setMonthLabel(monthName);
+        setToday(todayValue);
+      }
+      setPlanningLoadedUserId(userId);
+    }).catch((queryError: unknown) => {
+      if (!active) return;
+      setPlanningError(queryError instanceof Error ? queryError.message : "Could not load your planning data.");
+      setPlanningLoadedUserId(userId);
+    });
+    return () => { active = false; };
+  }, [kind, session?.user.id, refreshToken]);
+
+  const title = kind === "accounts" ? "Accounts" : kind === "planning" ? "Planning" : "Transactions";
+  const description = kind === "accounts" ? "Your connected balances, organized by account." : kind === "planning" ? "Monthly spending limits and upcoming money in or out." : "Search and filter your latest 1,000 money movements.";
   const loading = Boolean(session && loadedUserId !== session.user.id);
   const error = session && errorState?.userId === session.user.id ? errorState.message : null;
 
@@ -317,7 +376,7 @@ export function FinanceDataPage({ kind }: { kind: PageKind }) {
         ) : (
           <>
             <div className="mb-7 flex flex-col gap-4 sm:mb-9 sm:flex-row sm:items-end sm:justify-between"><div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-accent">Moneyfi workspace</p><h1 className="font-display text-[34px] leading-tight text-ink sm:text-[40px]">{title}</h1><p className="mt-2 text-sm text-muted">{description}</p></div><Link className="inline-flex h-10 items-center self-start rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink hover:bg-raised sm:self-auto" href="/">Back to overview</Link></div>
-            {error ? <div className="rounded-xl border border-line bg-surface px-5 py-8 text-center"><p className="text-sm font-medium text-ink">Could not load {title.toLowerCase()}</p><p className="mt-1 text-xs text-muted">{error}</p></div> : kind === "accounts" ? <AccountList accounts={accounts} client={supabase} loading={loading} onChanged={() => setRefreshToken((value) => value + 1)} userId={session.user.id} /> : <TransactionList accounts={accounts} loading={loading} transactions={transactions} />}
+            {error ? <div className="rounded-xl border border-line bg-surface px-5 py-8 text-center"><p className="text-sm font-medium text-ink">Could not load {title.toLowerCase()}</p><p className="mt-1 text-xs text-muted">{error}</p></div> : kind === "accounts" ? <AccountList accounts={accounts} client={supabase} loading={loading} onChanged={() => setRefreshToken((value) => value + 1)} userId={session.user.id} /> : kind === "transactions" ? <TransactionList accounts={accounts} loading={loading} transactions={transactions} /> : planningError ? <div className="rounded-xl border border-line bg-surface px-5 py-8 text-center"><p className="text-sm font-medium text-ink">Could not load planning data</p><p className="mt-1 text-xs text-muted">{planningError}</p></div> : planningLoadedUserId !== session.user.id || loading ? <p className="py-12 text-center text-sm text-muted">Loading planning data...</p> : <PlanningWorkspace accounts={accounts} budgets={budgets} client={supabase} monthExpenses={monthExpenses} monthLabel={monthLabel} onChanged={() => setRefreshToken((value) => value + 1)} recurring={recurring} today={today} userId={session.user.id} />}
           </>
         )}
       </main>
