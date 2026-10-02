@@ -643,7 +643,7 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
   const linePoints = points.map((point) => `${point.x},${point.y}`).join(" ");
 
   return (
-    <section aria-labelledby="movement-heading" className="mt-8 overflow-hidden rounded-xl border border-line bg-surface sm:mt-10">
+    <section aria-labelledby="movement-heading" className="dashboard-enter mt-8 overflow-hidden rounded-xl border border-line bg-surface sm:mt-10" style={{ animationDelay: "220ms" }}>
       <div className="flex flex-col gap-4 border-b border-line px-5 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-accent">Stats</p>
@@ -670,8 +670,8 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
           <div className="min-w-0">
             {showAllAccounts ? (
               <div className="dashboard-enter grid gap-x-8 gap-y-5 sm:grid-cols-2" key={`${accountId}-${range}`}>
-                {categoryMovementRows.map(({ label, change }) => (
-                  <div className="dashboard-enter" key={label} style={{ animationDelay: `${categoryMovementRows.findIndex((row) => row.label === label) * 70}ms` }}>
+                {categoryMovementRows.map(({ label, change }, index) => (
+                  <div className="dashboard-enter" key={label} style={{ animationDelay: `${index * 70}ms` }}>
                     <div className="flex items-baseline justify-between gap-3">
                       <p className="text-sm font-medium text-ink">{label}</p>
                       <p className={`text-sm font-semibold ${change === null ? "text-muted" : change > 0 ? "text-accent" : change < 0 ? "text-secondary" : "text-ink"}`}>
@@ -679,7 +679,7 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
                       </p>
                     </div>
                     <div aria-hidden="true" className="mt-2 h-2 overflow-hidden rounded-full bg-raised">
-                      {change !== null && <div className={`h-full rounded-full transition-[width] duration-500 ease-out ${change < 0 ? "bg-secondary" : "bg-accent"}`} style={{ width: `${Math.min(Math.abs(change), 100)}%` }} />}
+                      {change !== null && <div className={`dashboard-bar-fill h-full rounded-full ${change < 0 ? "bg-secondary" : "bg-accent"}`} style={{ width: `${Math.min(Math.abs(change), 100)}%`, animationDelay: `${index * 90 + 180}ms` }} />}
                     </div>
                   </div>
                 ))}
@@ -694,8 +694,8 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
                     const y = chartInset + (line / 3) * (chartHeight - chartInset * 2);
                     return <line key={line} stroke="var(--line)" strokeDasharray="4 6" strokeWidth="1" x1={chartInset} x2={chartWidth - chartInset} y1={y} y2={y} />;
                   })}
-                  {points.length > 1 && <polyline fill="none" points={linePoints} stroke="var(--accent)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />}
-                  {points.map(({ snapshot, x, y }) => <circle cx={x} cy={y} fill="var(--surface)" key={snapshot.id} r="5" stroke="var(--accent)" strokeWidth="3"><title>{`${new Date(snapshot.created_at).toLocaleDateString()} · ${formatCurrency(numericValue(snapshot.balance), snapshot.currency)}`}</title></circle>)}
+                  {points.length > 1 && <polyline className="balance-chart-line" fill="none" pathLength={1} points={linePoints} stroke="var(--accent)" strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" />}
+                  {points.map(({ snapshot, x, y }, index) => <circle className="balance-chart-point" cx={x} cy={y} fill="var(--surface)" key={snapshot.id} r="5" stroke="var(--accent)" strokeWidth="3" style={{ animationDelay: `${450 + index * 45}ms` }}><title>{`${new Date(snapshot.created_at).toLocaleDateString()} · ${formatCurrency(numericValue(snapshot.balance), snapshot.currency)}`}</title></circle>)}
                 </svg>
                 <div className="mt-1 flex justify-between text-xs text-muted"><span>{new Date(visibleHistory[0].created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span><span>{new Date(visibleHistory[visibleHistory.length - 1].created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span></div>
               </div>
@@ -953,7 +953,7 @@ export default function DashboardPage() {
               );
             })}
           </div>
-          <section aria-label="Estimated net worth by currency" className="relative mt-5 overflow-hidden rounded-xl border border-line border-l-[3px] border-l-accent bg-surface px-5 py-5 transition-colors duration-200 hover:bg-raised/50 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-6">
+          <section aria-label="Estimated net worth by currency" className="dashboard-enter relative mt-5 overflow-hidden rounded-xl border border-line border-l-[3px] border-l-accent bg-surface px-5 py-5 transition-colors duration-200 hover:bg-raised/50 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-6" style={{ animationDelay: "260ms" }}>
             <div className="flex items-center gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"><TrendingUp size={19} strokeWidth={1.8} /></span>
               <div><p className="text-xs font-semibold uppercase tracking-[0.08em] text-accent">Overall</p><h2 className="mt-0.5 text-sm font-semibold text-ink">Estimated net worth</h2><p className="mt-1 text-xs text-muted">Assets minus credit-card balances</p></div>
@@ -966,7 +966,7 @@ export default function DashboardPage() {
 
         {currentData && !currentData.error && <BalanceMovementPanel accounts={accounts} snapshots={currentData.snapshots} transactions={transactions} />}
 
-        <section aria-labelledby="activity-heading" className="mt-8 rounded-xl border border-line bg-surface sm:mt-10" id="activity">
+        <section aria-labelledby="activity-heading" className="dashboard-enter mt-8 rounded-xl border border-line bg-surface sm:mt-10" id="activity" style={{ animationDelay: "340ms" }}>
           <div className="flex items-center justify-between border-b border-line px-5 py-5 sm:px-6">
             <div>
               <h2 className="font-display text-[21px] text-ink" id="activity-heading">Recent activity</h2>
