@@ -2,6 +2,7 @@
 
 import {
   ArrowDownLeft,
+  ArrowLeftRight,
   ArrowUpRight,
   Banknote,
   CircleHelp,
@@ -362,7 +363,7 @@ function AddTransactionDialog({
   const [currency, setCurrency] = useState("PHP");
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
-  const [transactionType, setTransactionType] = useState<"expense" | "income">("expense");
+  const [transactionType, setTransactionType] = useState<"expense" | "income" | "adjustment">("expense");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const selectedAccount = accounts.find((account) => account.id === accountId);
@@ -372,8 +373,8 @@ function AddTransactionDialog({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const parsedAmount = Number(amount);
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setError("Enter an amount greater than zero.");
+    if (!Number.isFinite(parsedAmount) || (transactionType === "adjustment" ? parsedAmount === 0 : parsedAmount <= 0)) {
+      setError(transactionType === "adjustment" ? "Enter a non-zero adjustment amount." : "Enter an amount greater than zero.");
       return;
     }
     if (!isValidCurrencyCode(transactionCurrency)) {
@@ -422,16 +423,18 @@ function AddTransactionDialog({
           <div className="grid grid-cols-2 gap-3">
             <label className="block text-sm font-medium text-ink" htmlFor="transaction-type">
               Type
-              <select className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-type" onChange={(event) => setTransactionType(event.target.value as "expense" | "income")} value={transactionType}>
+              <select className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-type" onChange={(event) => setTransactionType(event.target.value as "expense" | "income" | "adjustment")} value={transactionType}>
                 <option value="expense">Expense</option>
                 <option value="income">Income</option>
+                <option value="adjustment">Adjustment</option>
               </select>
             </label>
             <label className="block text-sm font-medium text-ink" htmlFor="transaction-amount">
-              Amount
-              <input autoFocus className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-amount" min="0.01" onChange={(event) => setAmount(event.target.value)} required step="0.01" type="number" value={amount} />
+              {transactionType === "adjustment" ? "Net adjustment" : "Amount"}
+              <input autoFocus className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-amount" min={transactionType === "adjustment" ? undefined : "0.01"} onChange={(event) => setAmount(event.target.value)} placeholder={transactionType === "adjustment" ? "Positive or negative" : undefined} required step="0.01" type="number" value={amount} />
             </label>
           </div>
+          {transactionType === "adjustment" && <p className="-mt-2 text-xs leading-5 text-muted">Enter a positive amount to increase or a negative amount to decrease. Use one entry for the net change instead of logging every small transaction.</p>}
           <label className="block text-sm font-medium text-ink" htmlFor="transaction-account">
             Account <span className="font-normal text-muted">(optional)</span>
             <select className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-account" onChange={(event) => {
@@ -994,14 +997,15 @@ export default function DashboardPage() {
             <ul className="divide-y divide-line">
               {transactions.slice(0, 6).map((transaction) => {
                 const isIncome = transaction.transaction_type === "income";
+                const isAdjustment = transaction.transaction_type === "adjustment";
                 const amount = formatCurrency(Math.abs(numericValue(transaction.amount)), transaction.currency || "USD");
-                const title = transaction.category || transaction.notes || (isIncome ? "Income" : "Expense");
+                const title = transaction.category || transaction.notes || (isAdjustment ? "Adjustment" : isIncome ? "Income" : "Expense");
                 const accountName = transaction.account_id ? accountNames.get(transaction.account_id) : null;
 
                 return (
                   <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-4 transition-colors duration-150 hover:bg-raised/55 sm:gap-4 sm:px-6" key={transaction.id}>
-                    <span className={`flex size-10 items-center justify-center rounded-full ${isIncome ? "bg-accent-soft text-accent" : "bg-secondary-soft text-secondary"}`}>
-                      {isIncome ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                    <span className={`flex size-10 items-center justify-center rounded-full ${isAdjustment ? "bg-raised text-muted" : isIncome ? "bg-accent-soft text-accent" : "bg-secondary-soft text-secondary"}`}>
+                      {isAdjustment ? <ArrowLeftRight size={18} /> : isIncome ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-ink">{title}</p>
@@ -1010,8 +1014,8 @@ export default function DashboardPage() {
                         {accountName ? ` · ${accountName}` : " · Unassigned"}
                       </p>
                     </div>
-                    <p className={`text-right text-sm font-semibold ${isIncome ? "text-accent" : "text-ink"}`}>
-                      {isIncome ? "+" : "−"}{amount}
+                    <p className={`text-right text-sm font-semibold ${isAdjustment ? "text-muted" : isIncome ? "text-accent" : "text-ink"}`}>
+                      {isAdjustment ? numericValue(transaction.amount) < 0 ? "−" : "+" : isIncome ? "+" : "−"}{amount}
                     </p>
                   </li>
                 );
