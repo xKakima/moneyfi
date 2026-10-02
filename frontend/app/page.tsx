@@ -652,13 +652,13 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(10rem,1fr)_auto]">
           <label className="sr-only" htmlFor="movement-account">Choose account</label>
-          <select className="h-10 min-w-0 rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="movement-account" onChange={(event) => setSelectedAccountId(event.target.value)} value={accountId}>
+          <select className="h-10 min-w-0 rounded-md border border-line bg-canvas px-3 text-sm text-ink transition-colors duration-200 focus:border-accent" id="movement-account" onChange={(event) => setSelectedAccountId(event.target.value)} value={accountId}>
             <option value="all">All categories</option>
             {accounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
           <div aria-label="Chart time range" className="grid grid-cols-5 overflow-hidden rounded-md border border-line" role="group">
             {[ ["30", "1M"], ["90", "3M"], ["180", "6M"], ["365", "1Y"], ["all", "All"] ].map(([value, label]) => (
-              <button aria-pressed={range === value} className={`min-h-10 px-2 text-xs font-semibold ${range === value ? "bg-accent text-white" : "bg-surface text-muted hover:bg-raised"}`} key={value} onClick={() => setRange(value)} type="button">{label}</button>
+              <button aria-pressed={range === value} className={`min-h-10 px-2 text-xs font-semibold transition-colors duration-200 active:scale-[0.97] ${range === value ? "bg-accent text-white" : "bg-surface text-muted hover:bg-raised"}`} key={value} onClick={() => setRange(value)} type="button">{label}</button>
             ))}
           </div>
         </div>
@@ -669,9 +669,9 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
         <div className={showAllAccounts ? "p-5 sm:p-6" : "grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_220px]"}>
           <div className="min-w-0">
             {showAllAccounts ? (
-              <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+              <div className="dashboard-enter grid gap-x-8 gap-y-5 sm:grid-cols-2" key={`${accountId}-${range}`}>
                 {categoryMovementRows.map(({ label, change }) => (
-                  <div key={label}>
+                  <div className="dashboard-enter" key={label} style={{ animationDelay: `${categoryMovementRows.findIndex((row) => row.label === label) * 70}ms` }}>
                     <div className="flex items-baseline justify-between gap-3">
                       <p className="text-sm font-medium text-ink">{label}</p>
                       <p className={`text-sm font-semibold ${change === null ? "text-muted" : change > 0 ? "text-accent" : change < 0 ? "text-secondary" : "text-ink"}`}>
@@ -679,14 +679,14 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
                       </p>
                     </div>
                     <div aria-hidden="true" className="mt-2 h-2 overflow-hidden rounded-full bg-raised">
-                      {change !== null && <div className={`h-full rounded-full ${change < 0 ? "bg-secondary" : "bg-accent"}`} style={{ width: `${Math.min(Math.abs(change), 100)}%` }} />}
+                      {change !== null && <div className={`h-full rounded-full transition-[width] duration-500 ease-out ${change < 0 ? "bg-secondary" : "bg-accent"}`} style={{ width: `${Math.min(Math.abs(change), 100)}%` }} />}
                     </div>
                   </div>
                 ))}
                 <p className="text-xs text-muted sm:col-span-2">Average percentage change per account; currencies are not combined.</p>
               </div>
             ) : visibleHistory.length ? (
-              <>
+              <div className="dashboard-enter" key={`${accountId}-${range}`}>
                 <div className="mb-2 flex justify-between text-xs text-muted"><span>{formatCurrency(Math.min(...values), account?.currency || "USD")}</span><span>{formatCurrency(Math.max(...values), account?.currency || "USD")}</span></div>
                 <svg aria-label={`${account?.name ?? "Account"} balance history`} className="h-auto w-full overflow-visible" role="img" viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
                   <title>{account?.name ?? "Account"} balance history</title>
@@ -698,7 +698,7 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
                   {points.map(({ snapshot, x, y }) => <circle cx={x} cy={y} fill="var(--surface)" key={snapshot.id} r="5" stroke="var(--accent)" strokeWidth="3"><title>{`${new Date(snapshot.created_at).toLocaleDateString()} · ${formatCurrency(numericValue(snapshot.balance), snapshot.currency)}`}</title></circle>)}
                 </svg>
                 <div className="mt-1 flex justify-between text-xs text-muted"><span>{new Date(visibleHistory[0].created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span><span>{new Date(visibleHistory[visibleHistory.length - 1].created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span></div>
-              </>
+              </div>
             ) : (
               <div className="flex min-h-44 items-center justify-center border-y border-dashed border-line px-4 text-center text-sm text-muted">No balance checks in this period. Edit the account balance to record your first movement.</div>
             )}
@@ -928,7 +928,8 @@ export default function DashboardPage() {
             {metrics.map((metric, index) => {
               const Icon = metric.icon;
               return (
-                <Link aria-label={`${metric.label}: view accounts`} className="dashboard-enter group rounded-xl border border-line bg-surface p-5 shadow-[0_2px_12px_rgba(45,55,45,0.025)] transition-colors hover:border-accent/50 hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:p-6" href="/accounts" key={metric.label} style={{ animationDelay: `${index * 80}ms` }}>
+                <Link aria-label={`${metric.label}: view accounts`} className="dashboard-enter group relative min-h-[156px] overflow-hidden rounded-xl border border-line bg-surface p-5 shadow-[0_2px_12px_rgba(45,55,45,0.025)] transition-[transform,border-color,background-color,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-accent/50 hover:bg-raised hover:shadow-[0_8px_24px_rgba(45,55,45,0.08)] active:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:p-6" href="/accounts" key={metric.label} style={{ animationDelay: `${index * 80}ms` }}>
+                  <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-accent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-medium text-muted">{metric.label}</p>
@@ -952,10 +953,13 @@ export default function DashboardPage() {
               );
             })}
           </div>
-          <section aria-label="Estimated net worth by currency" className="mt-5 rounded-xl border border-line bg-surface px-5 py-4 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-6">
-            <div><h2 className="text-sm font-semibold text-ink">Estimated net worth</h2><p className="mt-1 text-xs text-muted">Assets minus credit-card balances; currencies are kept separate.</p></div>
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 sm:mt-0">
-              {currentData && !currentData.error && accounts.length ? Array.from(netWorthTotals, ([currency, value]) => <p className="font-display text-xl text-ink" key={currency}>{formatCurrency(value, currency)}</p>) : <p className="font-display text-xl text-ink">—</p>}
+          <section aria-label="Estimated net worth by currency" className="relative mt-5 overflow-hidden rounded-xl border border-line border-l-[3px] border-l-accent bg-surface px-5 py-5 transition-colors duration-200 hover:bg-raised/50 sm:flex sm:items-center sm:justify-between sm:gap-6 sm:px-6">
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent"><TrendingUp size={19} strokeWidth={1.8} /></span>
+              <div><p className="text-xs font-semibold uppercase tracking-[0.08em] text-accent">Overall</p><h2 className="mt-0.5 text-sm font-semibold text-ink">Estimated net worth</h2><p className="mt-1 text-xs text-muted">Assets minus credit-card balances</p></div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2 sm:mt-0 sm:justify-end">
+              {currentData && !currentData.error && accounts.length ? Array.from(netWorthTotals, ([currency, value]) => <p className="font-display text-[25px] leading-tight tabular-nums text-ink sm:text-[27px]" key={currency}>{formatCurrency(value, currency)}</p>) : <p className="font-display text-[25px] leading-tight text-ink">—</p>}
             </div>
           </section>
         </section>
@@ -995,7 +999,7 @@ export default function DashboardPage() {
                 const accountName = transaction.account_id ? accountNames.get(transaction.account_id) : null;
 
                 return (
-                  <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-4 sm:gap-4 sm:px-6" key={transaction.id}>
+                  <li className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-5 py-4 transition-colors duration-150 hover:bg-raised/55 sm:gap-4 sm:px-6" key={transaction.id}>
                     <span className={`flex size-10 items-center justify-center rounded-full ${isIncome ? "bg-accent-soft text-accent" : "bg-secondary-soft text-secondary"}`}>
                       {isIncome ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
                     </span>
