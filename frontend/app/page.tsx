@@ -567,12 +567,13 @@ function AddAccountDialog({
 }
 
 function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts: AccountRow[]; snapshots: BalanceSnapshot[]; transactions: TransactionRow[] }) {
-  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [selectedAccountId, setSelectedAccountId] = useState("all");
   const [range, setRange] = useState("90");
-  const accountId = accounts.some((account) => account.id === selectedAccountId) ? selectedAccountId : accounts[0]?.id ?? "";
+  const accountId = selectedAccountId === "all" || accounts.some((account) => account.id === selectedAccountId) ? selectedAccountId : "all";
+  const showAllAccounts = accountId === "all";
   const account = accounts.find((item) => item.id === accountId);
   const accountHistory = snapshots
-    .filter((snapshot) => snapshot.account_id === accountId)
+    .filter((snapshot) => !showAllAccounts && snapshot.account_id === accountId)
     .sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime());
   const latestSnapshot = accountHistory[accountHistory.length - 1];
   const previousSnapshot = accountHistory[accountHistory.length - 2];
@@ -587,6 +588,38 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
   const transactionChange = latestTransaction && previousTransaction
     ? percentageDifference(numericValue(latestTransaction.amount), numericValue(previousTransaction.amount))
     : null;
+  const latestSnapshotTime = Math.max(0, ...snapshots.map((snapshot) => new Date(snapshot.created_at).getTime()));
+  const categoryCutoff = range === "all" || !latestSnapshotTime
+    ? 0
+    : latestSnapshotTime - Number(range) * 24 * 60 * 60 * 1000;
+  const categoryLabels: Record<string, string> = {
+    bank: "Cash & savings",
+    ewallet: "Cash & savings",
+    investment: "Investments",
+    benefit: "Benefits & contributions",
+    credit_card: "Credit debt",
+  };
+  const categoryMovements = new Map<string, number[]>();
+  for (const item of accounts) {
+    const history = snapshots
+      .filter((snapshot) => snapshot.account_id === item.id)
+      .sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime());
+    if (history.length < 2) continue;
+    const previous = history.filter((snapshot) => new Date(snapshot.created_at).getTime() < categoryCutoff).at(-1);
+    const visible = history.filter((snapshot) => new Date(snapshot.created_at).getTime() >= categoryCutoff);
+    const baseline = previous ?? visible[0];
+    const latest = visible.at(-1);
+    if (!latest || latest.id === baseline.id) continue;
+    const change = percentageDifference(numericValue(latest.balance), numericValue(baseline.balance));
+    if (change === null) continue;
+    const label = categoryLabels[item.type] ?? item.type;
+    categoryMovements.set(label, [...(categoryMovements.get(label) ?? []), change]);
+  }
+  const categoryMovementRows = ["Cash & savings", "Investments", "Benefits & contributions", "Credit debt"]
+    .map((label) => {
+      const changes = categoryMovements.get(label) ?? [];
+      return { label, change: changes.length ? changes.reduce((total, value) => total + value, 0) / changes.length : null };
+    });
   const cutoff = range === "all" || !latestSnapshot
     ? 0
     : new Date(latestSnapshot.created_at).getTime() - Number(range) * 24 * 60 * 60 * 1000;
@@ -615,11 +648,12 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.1em] text-accent">Stats</p>
           <h2 className="mt-1 font-display text-[21px] text-ink" id="movement-heading">Balance movement</h2>
-          <p className="mt-1 text-xs text-muted">Update an account balance when you check it; no need to log every purchase.</p>
+          <p className="mt-1 text-xs text-muted">Average balance change by category; currencies stay separate.</p>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(10rem,1fr)_auto]">
           <label className="sr-only" htmlFor="movement-account">Choose account</label>
           <select className="h-10 min-w-0 rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="movement-account" onChange={(event) => setSelectedAccountId(event.target.value)} value={accountId}>
+            <option value="all">All categories</option>
             {accounts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
           <div aria-label="Chart time range" className="grid grid-cols-5 overflow-hidden rounded-md border border-line" role="group">
@@ -632,9 +666,26 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
       {!accounts.length ? (
         <div className="px-5 py-10 text-center text-sm text-muted">Add an account to start tracking balance movement.</div>
       ) : (
-        <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <div className={showAllAccounts ? "p-5 sm:p-6" : "grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1fr)_220px]"}>
           <div className="min-w-0">
-            {visibleHistory.length ? (
+            {showAllAccounts ? (
+              <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+                {categoryMovementRows.map(({ label, change }) => (
+                  <div key={label}>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-sm font-medium text-ink">{label}</p>
+                      <p className={`text-sm font-semibold ${change === null ? "text-muted" : change > 0 ? "text-accent" : change < 0 ? "text-secondary" : "text-ink"}`}>
+                        {change === null ? "Not enough history" : `${change > 0 ? "+" : ""}${change.toFixed(1)}%`}
+                      </p>
+                    </div>
+                    <div aria-hidden="true" className="mt-2 h-2 overflow-hidden rounded-full bg-raised">
+                      {change !== null && <div className={`h-full rounded-full ${change < 0 ? "bg-secondary" : "bg-accent"}`} style={{ width: `${Math.min(Math.abs(change), 100)}%` }} />}
+                    </div>
+                  </div>
+                ))}
+                <p className="text-xs text-muted sm:col-span-2">Average percentage change per account; currencies are not combined.</p>
+              </div>
+            ) : visibleHistory.length ? (
               <>
                 <div className="mb-2 flex justify-between text-xs text-muted"><span>{formatCurrency(Math.min(...values), account?.currency || "USD")}</span><span>{formatCurrency(Math.max(...values), account?.currency || "USD")}</span></div>
                 <svg aria-label={`${account?.name ?? "Account"} balance history`} className="h-auto w-full overflow-visible" role="img" viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
@@ -652,11 +703,11 @@ function BalanceMovementPanel({ accounts, snapshots, transactions }: { accounts:
               <div className="flex min-h-44 items-center justify-center border-y border-dashed border-line px-4 text-center text-sm text-muted">No balance checks in this period. Edit the account balance to record your first movement.</div>
             )}
           </div>
-          <div className="flex flex-row flex-wrap items-center justify-between gap-4 border-t border-line pt-4 lg:flex-col lg:items-start lg:justify-center lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          {!showAllAccounts && <div className="flex flex-row flex-wrap items-center justify-between gap-4 border-t border-line pt-4 lg:flex-col lg:items-start lg:justify-center lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
             <div><p className="text-xs text-muted">Current balance</p><p className="mt-1 font-display text-[22px] text-ink">{account ? formatCurrency(numericValue(account.balance), account.currency || "USD") : "—"}</p></div>
             <div><p className="text-xs text-muted">Change since previous check</p>{latestSnapshot && previousSnapshot && latestChange !== null ? <p className={`mt-1 text-sm font-semibold ${latestChange > 0 ? "text-accent" : latestChange < 0 ? "text-secondary" : "text-muted"}`}>{latestChange > 0 ? "+" : ""}{latestChange.toFixed(1)}% <span className="font-normal text-muted">({formatCurrency(numericValue(latestSnapshot.balance) - numericValue(previousSnapshot.balance), account?.currency || "USD")})</span></p> : <p className="mt-1 text-sm text-muted">{latestSnapshot ? "First balance recorded" : "No history yet"}</p>}</div>
             <div><p className="text-xs text-muted">Latest {latestTransaction?.transaction_type ?? "transaction"} vs previous</p>{latestTransaction && previousTransaction && transactionChange !== null ? <p className="mt-1 text-sm font-semibold text-ink">{transactionChange > 0 ? "+" : ""}{transactionChange.toFixed(1)}% <span className="font-normal text-muted">({formatCurrency(numericValue(latestTransaction.amount) - numericValue(previousTransaction.amount), latestTransaction.currency)})</span></p> : <p className="mt-1 text-sm text-muted">{latestTransaction ? "No comparable transaction" : "No transactions for this account"}</p>}</div>
-          </div>
+          </div>}
         </div>
       )}
     </section>
