@@ -356,7 +356,7 @@ function AddTransactionDialog({
   userId: string;
   accounts: AccountRow[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (message: string) => void;
 }) {
   const [amount, setAmount] = useState("");
   const [accountId, setAccountId] = useState("");
@@ -364,17 +364,27 @@ function AddTransactionDialog({
   const [category, setCategory] = useState("");
   const [notes, setNotes] = useState("");
   const [transactionType, setTransactionType] = useState<"expense" | "income" | "adjustment">("expense");
+  const [adjustmentMode, setAdjustmentMode] = useState<"increase" | "decrease" | "current_balance">("increase");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const selectedAccount = accounts.find((account) => account.id === accountId);
   const transactionCurrency = selectedAccount?.currency ?? currency;
+  const parsedAmount = Number(amount);
+  const adjustmentDelta = adjustmentMode === "current_balance" && selectedAccount
+    ? parsedAmount - numericValue(selectedAccount.balance)
+    : adjustmentMode === "decrease" ? -Math.abs(parsedAmount) : Math.abs(parsedAmount);
   useEscapeToClose(onClose);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const parsedAmount = Number(amount);
-    if (!Number.isFinite(parsedAmount) || (transactionType === "adjustment" ? parsedAmount === 0 : parsedAmount <= 0)) {
-      setError(transactionType === "adjustment" ? "Enter a non-zero adjustment amount." : "Enter an amount greater than zero.");
+    const enteredAmount = Number(amount);
+    const settingCurrentBalance = transactionType === "adjustment" && adjustmentMode === "current_balance";
+    if (!Number.isFinite(enteredAmount) || (settingCurrentBalance ? enteredAmount < 0 : enteredAmount <= 0)) {
+      setError(settingCurrentBalance ? "Enter a balance of zero or more." : "Enter an amount greater than zero.");
+      return;
+    }
+    if (transactionType === "adjustment" && !selectedAccount) {
+      setError("Choose an account to adjust.");
       return;
     }
     if (!isValidCurrencyCode(transactionCurrency)) {
@@ -385,10 +395,32 @@ function AddTransactionDialog({
     setSubmitting(true);
     setError(null);
     try {
+      if (transactionType === "adjustment" && selectedAccount) {
+        const { data, error: adjustmentError } = await client.rpc("reconcile_account_balance", {
+          p_account_id: selectedAccount.id,
+          p_amount: enteredAmount,
+          p_category: category.trim() || null,
+          p_mode: adjustmentMode,
+          p_notes: notes.trim() || null,
+        });
+
+        if (adjustmentError) {
+          setError(adjustmentError.message);
+          return;
+        }
+
+        const savedDelta = Number(data);
+        onSaved(savedDelta === 0
+          ? "Account already matches that balance."
+          : `Balance adjusted by ${formatCurrency(savedDelta, transactionCurrency)}.`);
+        onClose();
+        return;
+      }
+
       const { error: insertError } = await client.from("transactions").insert({
         user_id: userId,
         account_id: accountId || null,
-        amount: parsedAmount,
+        amount: enteredAmount,
         currency: transactionCurrency,
         category: category.trim() || null,
         transaction_type: transactionType,
@@ -400,7 +432,7 @@ function AddTransactionDialog({
         return;
       }
 
-      onSaved();
+      onSaved("Transaction saved.");
       onClose();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to save this transaction.");
@@ -430,20 +462,29 @@ function AddTransactionDialog({
               </select>
             </label>
             <label className="block text-sm font-medium text-ink" htmlFor="transaction-amount">
-              {transactionType === "adjustment" ? "Net adjustment" : "Amount"}
-              <input autoFocus className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-amount" min={transactionType === "adjustment" ? undefined : "0.01"} onChange={(event) => setAmount(event.target.value)} placeholder={transactionType === "adjustment" ? "Positive or negative" : undefined} required step="0.01" type="number" value={amount} />
+              {transactionType === "adjustment" ? adjustmentMode === "current_balance" ? "Actual current balance" : "Adjustment amount" : "Amount"}
+              <input autoFocus className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-amount" min={transactionType === "adjustment" && adjustmentMode === "current_balance" ? "0" : "0.01"} onChange={(event) => setAmount(event.target.value)} required step="0.01" type="number" value={amount} />
             </label>
           </div>
-          {transactionType === "adjustment" && <p className="-mt-2 text-xs leading-5 text-muted">Enter a positive amount to increase or a negative amount to decrease. Use one entry for the net change instead of logging every small transaction.</p>}
+          {transactionType === "adjustment" && <>
+            <div aria-label="Adjustment method" className="grid grid-cols-3 overflow-hidden rounded-md border border-line" role="group">
+              {([ ["increase", "Increase"], ["decrease", "Decrease"], ["current_balance", "Current balance"] ] as const).map(([value, label]) => (
+                <button aria-pressed={adjustmentMode === value} className={`min-h-10 px-2 text-xs font-semibold transition-colors ${adjustmentMode === value ? "bg-accent text-white" : "bg-surface text-muted hover:bg-raised"}`} key={value} onClick={() => setAdjustmentMode(value)} type="button">{label}</button>
+              ))}
+            </div>
+            <p className="-mt-2 text-xs leading-5 text-muted">
+              {adjustmentMode === "current_balance" ? selectedAccount ? `Current: ${formatCurrency(numericValue(selectedAccount.balance), transactionCurrency)}. ${adjustmentDelta === 0 ? "This account already matches." : `Will record ${formatCurrency(adjustmentDelta, transactionCurrency)} and set the balance to the amount entered.`}` : "Choose an account to compare its saved balance with the actual balance." : `Record one ${adjustmentMode} instead of tracking every small transaction.`}
+            </p>
+          </>}
           <label className="block text-sm font-medium text-ink" htmlFor="transaction-account">
-            Account <span className="font-normal text-muted">(optional)</span>
+            Account <span className="font-normal text-muted">{transactionType === "adjustment" ? "(required)" : "(optional)"}</span>
             <select className="mt-1.5 h-11 w-full rounded-md border border-line bg-canvas px-3 text-sm text-ink" id="transaction-account" onChange={(event) => {
               const nextAccountId = event.target.value;
               setAccountId(nextAccountId);
               const nextAccount = accounts.find((account) => account.id === nextAccountId);
               if (nextAccount) setCurrency(nextAccount.currency);
-            }} value={accountId}>
-              <option value="">No account</option>
+            }} required={transactionType === "adjustment"} value={accountId}>
+              <option value="">{transactionType === "adjustment" ? "Choose an account" : "No account"}</option>
               {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} ({account.currency})</option>)}
             </select>
           </label>
@@ -1035,9 +1076,9 @@ export default function DashboardPage() {
           accounts={accounts}
           client={supabase}
           onClose={() => setShowTransactionDialog(false)}
-          onSaved={() => {
+          onSaved={(message) => {
             setRefreshToken((value) => value + 1);
-            setSaveConfirmation("Transaction saved.");
+            setSaveConfirmation(message);
           }}
           userId={session.user.id}
         />
