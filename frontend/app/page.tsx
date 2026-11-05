@@ -16,6 +16,7 @@ import {
   Moon,
   Plus,
   Share2,
+  Sparkles,
   Sun,
   TrendingUp,
   Wallet,
@@ -27,7 +28,6 @@ import Link from "next/link";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { AmountInput } from "@/components/amount-input";
 import { GamificationSettings } from "@/components/gamification-settings";
-import { QuestGarden } from "@/components/quest-garden";
 import { ShareViewDialog } from "@/components/share-view-dialog";
 import { useTheme } from "@/components/theme-provider";
 import { currencyOptions, formatCurrency, isValidCurrencyCode } from "@/lib/currency";
@@ -65,15 +65,6 @@ type DashboardState = {
   accounts: AccountRow[];
   transactions: TransactionRow[];
   snapshots: BalanceSnapshot[];
-  error?: string;
-};
-
-type QuestAvailabilityState = {
-  userId: string;
-  hasGoal: boolean;
-  hasBudget: boolean;
-  hasReminder: boolean;
-  hasTransaction: boolean;
   error?: string;
 };
 
@@ -210,6 +201,7 @@ function DashboardHeader({
             <Link className="transition-colors hover:text-ink" href="/transactions">Transactions</Link>
             <Link className="transition-colors hover:text-ink" href="/accounts">Accounts</Link>
             <Link className="transition-colors hover:text-ink" href="/planning">Planning</Link>
+            <Link className="transition-colors hover:text-ink" href="/adventure">Adventure</Link>
           </nav>
         )}
 
@@ -237,11 +229,12 @@ function DashboardHeader({
         </div>
       </div>
       {email && (
-        <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-4 border-t border-line px-5 sm:px-8 md:hidden">
-          <Link aria-current="page" className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" href="/">Overview</Link>
-          <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/transactions">Transactions</Link>
-          <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/accounts">Accounts</Link>
-          <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/planning">Planning</Link>
+        <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-5 border-t border-line px-5 sm:px-8 md:hidden">
+          <Link aria-current="page" className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-ink sm:text-sm" href="/">Overview</Link>
+          <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/transactions">Transactions</Link>
+          <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/accounts">Accounts</Link>
+          <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/planning">Planning</Link>
+          <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/adventure">Adventure</Link>
         </nav>
       )}
     </header>
@@ -786,7 +779,6 @@ export default function DashboardPage() {
   const [dashboardState, setDashboardState] = useState<DashboardState | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [gamificationEnabled, setGamificationEnabled] = useState(false);
-  const [questAvailability, setQuestAvailability] = useState<QuestAvailabilityState | null>(null);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
   const [showAccountDialog, setShowAccountDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -861,51 +853,6 @@ export default function DashboardPage() {
       active = false;
     };
   }, [userId, refreshToken]);
-
-  useEffect(() => {
-    if (!supabase || !userId || !gamificationEnabled) return;
-    let active = true;
-    void (async () => {
-      try {
-        const [goalResult, budgetResult, reminderResult, transactionResult] = await Promise.all([
-          supabase.from("savings_goals").select("id").eq("user_id", userId).limit(1),
-          supabase.from("category_budgets").select("id").eq("user_id", userId).limit(1),
-          supabase.from("recurring_cashflows").select("id").eq("user_id", userId).eq("active", true).limit(1),
-          supabase.from("transactions").select("id").eq("user_id", userId).limit(1),
-        ]);
-        if (!active) return;
-        const queryError = goalResult.error ?? budgetResult.error ?? reminderResult.error ?? transactionResult.error;
-        if (queryError) {
-          setQuestAvailability({
-            userId,
-            hasGoal: false,
-            hasBudget: false,
-            hasReminder: false,
-            hasTransaction: false,
-            error: queryError.message,
-          });
-          return;
-        }
-        setQuestAvailability({
-          userId,
-          hasGoal: (goalResult.data ?? []).length > 0,
-          hasBudget: (budgetResult.data ?? []).length > 0,
-          hasReminder: (reminderResult.data ?? []).length > 0,
-          hasTransaction: (transactionResult.data ?? []).length > 0,
-        });
-      } catch (error) {
-        if (active) setQuestAvailability({
-          userId,
-          hasGoal: false,
-          hasBudget: false,
-          hasReminder: false,
-          hasTransaction: false,
-          error: error instanceof Error ? error.message : "Could not load savings goals.",
-        });
-      }
-    })();
-    return () => { active = false; };
-  }, [gamificationEnabled, refreshToken, userId]);
 
   if (configurationError) {
     return (
@@ -1077,19 +1024,16 @@ export default function DashboardPage() {
           </section>
         </section>
 
-        {gamificationEnabled && (
-          <div className="mt-8 sm:mt-10">
-            <QuestGarden
-              error={questAvailability?.userId === session.user.id ? questAvailability.error : undefined}
-              hasBudget={questAvailability?.userId === session.user.id ? questAvailability.hasBudget : false}
-              hasGoal={questAvailability?.userId === session.user.id ? questAvailability.hasGoal : false}
-              hasReminder={questAvailability?.userId === session.user.id ? questAvailability.hasReminder : false}
-              hasTransaction={questAvailability?.userId === session.user.id ? questAvailability.hasTransaction : false}
-              key={session.user.id}
-              loading={questAvailability?.userId !== session.user.id}
-            />
-          </div>
-        )}
+        <Link className="dashboard-enter mt-8 flex items-center justify-between gap-4 rounded-xl border border-accent/20 bg-gradient-to-r from-accent-soft/70 to-surface p-5 transition hover:border-accent/40 sm:mt-10 sm:px-6" href="/adventure">
+          <span className="flex items-center gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-surface text-accent"><Sparkles size={20} /></span>
+            <span>
+              <span className="block font-display text-lg text-ink">Your adventure</span>
+              <span className="mt-0.5 block text-xs text-muted">{gamificationEnabled ? "Visit your character, companion, and mini quests." : "Meet your companion and explore optional mini quests."}</span>
+            </span>
+          </span>
+          <span className="shrink-0 text-xs font-semibold text-accent">Open adventure →</span>
+        </Link>
 
         {currentData && !currentData.error && <BalanceMovementPanel accounts={accounts} snapshots={currentData.snapshots} transactions={transactions} />}
 

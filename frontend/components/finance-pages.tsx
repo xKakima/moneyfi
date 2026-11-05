@@ -42,6 +42,7 @@ function Header({ session, kind }: { session: Session | null; kind: PageKind }) 
           <Link aria-current={kind === "transactions" ? "page" : undefined} className={kind === "transactions" ? "text-ink" : "text-muted transition-colors hover:text-ink"} href="/transactions">Transactions</Link>
           <Link aria-current={kind === "accounts" ? "page" : undefined} className={kind === "accounts" ? "text-ink" : "text-muted transition-colors hover:text-ink"} href="/accounts">Accounts</Link>
           <Link aria-current={kind === "planning" ? "page" : undefined} className={kind === "planning" ? "text-ink" : "text-muted transition-colors hover:text-ink"} href="/planning">Planning</Link>
+          <Link className="text-muted transition-colors hover:text-ink" href="/adventure">Adventure</Link>
         </nav>
         <div className="flex items-center gap-2">
           {session && <GamificationSettings userId={session.user.id} />}
@@ -49,11 +50,12 @@ function Header({ session, kind }: { session: Session | null; kind: PageKind }) 
           {session && supabase && <button aria-label="Sign out" className="icon-button" onClick={() => { void supabase.auth.signOut(); }} title="Sign out" type="button"><LogOut size={17} /></button>}
         </div>
       </div>
-      {session && <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-4 border-t border-line px-5 sm:px-8 md:hidden">
-        <Link className="flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink" href="/">Overview</Link>
-        <Link aria-current={kind === "transactions" ? "page" : undefined} className={kind === "transactions" ? "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" : "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink"} href="/transactions">Transactions</Link>
-        <Link aria-current={kind === "accounts" ? "page" : undefined} className={kind === "accounts" ? "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" : "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink"} href="/accounts">Accounts</Link>
-        <Link aria-current={kind === "planning" ? "page" : undefined} className={kind === "planning" ? "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-ink" : "flex min-h-12 items-center justify-center px-2 text-sm font-medium text-muted transition-colors hover:text-ink"} href="/planning">Planning</Link>
+      {session && <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-5 border-t border-line px-5 sm:px-8 md:hidden">
+        <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/">Overview</Link>
+        <Link aria-current={kind === "transactions" ? "page" : undefined} className={kind === "transactions" ? "flex min-h-12 items-center justify-center px-1 text-xs font-medium text-ink sm:text-sm" : "flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm"} href="/transactions">Transactions</Link>
+        <Link aria-current={kind === "accounts" ? "page" : undefined} className={kind === "accounts" ? "flex min-h-12 items-center justify-center px-1 text-xs font-medium text-ink sm:text-sm" : "flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm"} href="/accounts">Accounts</Link>
+        <Link aria-current={kind === "planning" ? "page" : undefined} className={kind === "planning" ? "flex min-h-12 items-center justify-center px-1 text-xs font-medium text-ink sm:text-sm" : "flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm"} href="/planning">Planning</Link>
+        <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/adventure">Adventure</Link>
       </nav>}
     </header>
   );
