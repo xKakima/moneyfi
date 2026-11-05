@@ -4,6 +4,7 @@ import { CalendarClock, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { AmountInput } from "@/components/amount-input";
+import { FinancialAlerts } from "@/components/financial-alerts";
 import { currencyOptions, formatCurrency, isValidCurrencyCode } from "@/lib/currency";
 
 type Account = { id: string; name: string; currency: string };
@@ -327,6 +328,7 @@ export function PlanningWorkspace({
   return (
     <div className="space-y-8">
       {actionError && <p className="rounded-md bg-secondary-soft px-4 py-3 text-sm text-ink" role="alert">{actionError}</p>}
+      <FinancialAlerts budgets={budgets} key={userId} monthExpenses={monthExpenses} recurring={recurring} today={today} userId={userId} />
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-line bg-surface p-4"><p className="text-xs text-muted">Monthly budgets</p><p className="mt-1 font-display text-2xl text-ink">{budgets.length}</p></div>
         <div className="rounded-lg border border-line bg-surface p-4"><p className="text-xs text-muted">Active schedules</p><p className="mt-1 font-display text-2xl text-ink">{upcoming.length}</p></div>

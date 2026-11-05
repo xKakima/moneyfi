@@ -40,3 +40,12 @@ Moneyfi stores recurring income and bill reminders and shows monthly budget prog
 ## Recommended first release
 
 Use low-frequency, in-app-only prompts for due bills and budget thresholds, with clear settings and no push or email.
+
+## Implementation status
+
+Implemented on the Planning page:
+
+- Active recurring expenses due within seven days, including overdue reminders.
+- Budget notices at 80% and at/above the configured limit, based only on recorded expenses.
+- Per-type toggles and dismissible alerts, saved in browser storage per signed-in user.
+- No push or email notifications.
