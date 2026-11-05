@@ -26,6 +26,8 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { AmountInput } from "@/components/amount-input";
+import { GamificationSettings } from "@/components/gamification-settings";
+import { QuestGarden } from "@/components/quest-garden";
 import { ShareViewDialog } from "@/components/share-view-dialog";
 import { useTheme } from "@/components/theme-provider";
 import { currencyOptions, formatCurrency, isValidCurrencyCode } from "@/lib/currency";
@@ -63,6 +65,15 @@ type DashboardState = {
   accounts: AccountRow[];
   transactions: TransactionRow[];
   snapshots: BalanceSnapshot[];
+  error?: string;
+};
+
+type QuestAvailabilityState = {
+  userId: string;
+  hasGoal: boolean;
+  hasBudget: boolean;
+  hasReminder: boolean;
+  hasTransaction: boolean;
   error?: string;
 };
 
@@ -170,11 +181,21 @@ function ThemeToggle() {
   );
 }
 
-function DashboardHeader({ email, onSignOut }: { email?: string; onSignOut?: () => void }) {
+function DashboardHeader({
+  email,
+  userId,
+  onSignOut,
+  onGamificationChange,
+}: {
+  email?: string;
+  userId?: string;
+  onSignOut?: () => void;
+  onGamificationChange?: (enabled: boolean) => void;
+}) {
   const initial = email?.trim().charAt(0).toUpperCase() || "A";
 
   return (
-    <header className="relative border-b border-line bg-surface/85">
+    <header className="sticky top-0 z-40 border-b border-line bg-surface/95 shadow-[0_1px_8px_rgba(30,40,30,0.04)] backdrop-blur-md">
       <div className="mx-auto flex h-[72px] max-w-[1320px] items-center justify-between px-5 sm:px-8 lg:px-12">
         <Link className="flex items-center gap-2.5" href="/" aria-label="Moneyfi home">
           <span className="flex size-9 items-center justify-center rounded-xl bg-accent text-white">
@@ -193,6 +214,7 @@ function DashboardHeader({ email, onSignOut }: { email?: string; onSignOut?: () 
         )}
 
         <div className="flex items-center gap-2 sm:gap-3">
+          {userId && <GamificationSettings onEnabledChange={onGamificationChange} userId={userId} />}
           <ThemeToggle />
           {email && onSignOut && (
             <>
@@ -763,6 +785,8 @@ export default function DashboardPage() {
   const [authReady, setAuthReady] = useState(!supabase);
   const [dashboardState, setDashboardState] = useState<DashboardState | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [gamificationEnabled, setGamificationEnabled] = useState(false);
+  const [questAvailability, setQuestAvailability] = useState<QuestAvailabilityState | null>(null);
   const [showTransactionDialog, setShowTransactionDialog] = useState(false);
   const [showAccountDialog, setShowAccountDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -838,6 +862,51 @@ export default function DashboardPage() {
     };
   }, [userId, refreshToken]);
 
+  useEffect(() => {
+    if (!supabase || !userId || !gamificationEnabled) return;
+    let active = true;
+    void (async () => {
+      try {
+        const [goalResult, budgetResult, reminderResult, transactionResult] = await Promise.all([
+          supabase.from("savings_goals").select("id").eq("user_id", userId).limit(1),
+          supabase.from("category_budgets").select("id").eq("user_id", userId).limit(1),
+          supabase.from("recurring_cashflows").select("id").eq("user_id", userId).limit(1),
+          supabase.from("transactions").select("id").eq("user_id", userId).limit(1),
+        ]);
+        if (!active) return;
+        const queryError = goalResult.error ?? budgetResult.error ?? reminderResult.error ?? transactionResult.error;
+        if (queryError) {
+          setQuestAvailability({
+            userId,
+            hasGoal: false,
+            hasBudget: false,
+            hasReminder: false,
+            hasTransaction: false,
+            error: queryError.message,
+          });
+          return;
+        }
+        setQuestAvailability({
+          userId,
+          hasGoal: (goalResult.data ?? []).length > 0,
+          hasBudget: (budgetResult.data ?? []).length > 0,
+          hasReminder: (reminderResult.data ?? []).length > 0,
+          hasTransaction: (transactionResult.data ?? []).length > 0,
+        });
+      } catch (error) {
+        if (active) setQuestAvailability({
+          userId,
+          hasGoal: false,
+          hasBudget: false,
+          hasReminder: false,
+          hasTransaction: false,
+          error: error instanceof Error ? error.message : "Could not load savings goals.",
+        });
+      }
+    })();
+    return () => { active = false; };
+  }, [gamificationEnabled, refreshToken, userId]);
+
   if (configurationError) {
     return (
       <div className="min-h-screen bg-canvas transition-colors duration-300">
@@ -909,7 +978,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-canvas transition-colors duration-300">
-      <DashboardHeader email={session.user.email ?? "Account"} onSignOut={() => { void signOut(); }} />
+      <DashboardHeader email={session.user.email ?? "Account"} onGamificationChange={setGamificationEnabled} onSignOut={() => { void signOut(); }} userId={session.user.id} />
       <main className="mx-auto max-w-[1320px] px-5 pb-12 pt-8 sm:px-8 sm:pt-11 lg:px-12 lg:pt-14">
         {saveConfirmation && (
           <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-accent/25 bg-accent-soft px-4 py-3 text-sm text-ink" role="status">
@@ -1007,6 +1076,20 @@ export default function DashboardPage() {
             </div>
           </section>
         </section>
+
+        {gamificationEnabled && (
+          <div className="mt-8 sm:mt-10">
+            <QuestGarden
+              error={questAvailability?.userId === session.user.id ? questAvailability.error : undefined}
+              hasBudget={questAvailability?.userId === session.user.id ? questAvailability.hasBudget : false}
+              hasGoal={questAvailability?.userId === session.user.id ? questAvailability.hasGoal : false}
+              hasReminder={questAvailability?.userId === session.user.id ? questAvailability.hasReminder : false}
+              hasTransaction={questAvailability?.userId === session.user.id ? questAvailability.hasTransaction : false}
+              key={session.user.id}
+              loading={questAvailability?.userId !== session.user.id}
+            />
+          </div>
+        )}
 
         {currentData && !currentData.error && <BalanceMovementPanel accounts={accounts} snapshots={currentData.snapshots} transactions={transactions} />}
 

@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import { AmountInput } from "@/components/amount-input";
 import { PlanningWorkspace } from "@/components/planning-workspace";
+import { GamificationSettings } from "@/components/gamification-settings";
 import { useTheme } from "@/components/theme-provider";
 import { currencyOptions, formatCurrency, isValidCurrencyCode } from "@/lib/currency";
 import { getSupabaseBrowserClient, getSupabaseConfigurationError } from "@/lib/supabase/client";
@@ -30,7 +31,7 @@ function ThemeButton() {
 
 function Header({ session, kind }: { session: Session | null; kind: PageKind }) {
   return (
-    <header className="relative border-b border-line bg-surface/85">
+    <header className="sticky top-0 z-40 border-b border-line bg-surface/95 shadow-[0_1px_8px_rgba(30,40,30,0.04)] backdrop-blur-md">
       <div className="mx-auto flex h-[72px] max-w-[1320px] items-center justify-between px-5 sm:px-8 lg:px-12">
         <Link className="flex items-center gap-2.5" href="/" aria-label="Moneyfi overview">
           <span className="flex size-9 items-center justify-center rounded-xl bg-accent text-white"><Leaf size={19} /></span>
@@ -43,6 +44,7 @@ function Header({ session, kind }: { session: Session | null; kind: PageKind }) 
           <Link aria-current={kind === "planning" ? "page" : undefined} className={kind === "planning" ? "text-ink" : "text-muted transition-colors hover:text-ink"} href="/planning">Planning</Link>
         </nav>
         <div className="flex items-center gap-2">
+          {session && <GamificationSettings userId={session.user.id} />}
           <ThemeButton />
           {session && supabase && <button aria-label="Sign out" className="icon-button" onClick={() => { void supabase.auth.signOut(); }} title="Sign out" type="button"><LogOut size={17} /></button>}
         </div>

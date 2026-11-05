@@ -1,86 +1,142 @@
-# Moneyfi Gamification Plan
+# Moneyfi RPG Gamification Plan
 
-## Purpose
+## Vision
 
-Encourage useful, sustainable financial habits and help users make progress toward their own goals. Gamification should make Moneyfi feel supportive, not competitive or judgmental.
+Make managing money feel like a personal, low-pressure adventure. The user is the hero; their real-life financial priorities are the story. Quests guide users toward useful actions in Moneyfi, while experience and cosmetic rewards make progress visible. The RPG layer is optional and never affects core finance features.
+
+The experience should feel cozy and encouraging rather than competitive, grind-heavy, or designed to maximize app opens.
 
 ## Product principles
 
-- Reward planning, awareness, and consistency—not spending, account balances, or app opens.
-- Keep participation optional. Users can dismiss prompts and use the core app without engaging with rewards.
-- Celebrate progress without punishing missed days or setbacks.
-- Keep achievements private by default; do not compare users or expose financial details.
-- Respect currencies: show goals and progress in the goal's currency, and do not combine unlike currencies.
-- Use clear, calm language. Avoid shame, pressure, and claims that Moneyfi provides financial advice.
+- Opt in from Settings; keep the existing default-off behavior.
+- Reward intentional planning and understanding, never spending, income, balances, or the number of transactions.
+- Keep all progress private. No leaderboards, public profiles, or social comparison in the first release.
+- Never punish missed days, paused goals, financial setbacks, or turning the feature off.
+- Do not require bank linking, notifications, or daily attendance.
+- Use cosmetic rewards only. XP and levels have no cash value and cannot unlock financial products or change account behavior.
+- Clearly distinguish self-reported goal progress from verified balances. Nothing in the game moves money or gives financial advice.
+- Support reduced motion, keyboard navigation, screen readers, and clear text alternatives to game visuals.
 
-## Proposed experience
+## Player experience
 
-### 1. Personal financial goals
+### The setting
 
-Let a user create a goal with a name, target amount, currency, and optional target date. Show progress toward the target and allow the user to update progress when they update an account balance. Make clear that progress is based on user-entered information and is not an account transfer or a promise of future returns.
+The user and a small original companion share a private garden that represents their financial journey. Both the character and companion gain their own XP and levels from mini-quests. The garden is the home for the RPG layer and can later grow through cosmetic items and story moments. Keep visuals lightweight and aligned with Moneyfi's existing design; avoid making the finance dashboard feel like a full-screen game. Use original names and artwork rather than recognizable characters from existing franchises.
 
-Examples include an emergency fund, a planned purchase, or a trip. A goal should be useful without requiring the user to connect a bank account.
+### Core loop
 
-### 2. Milestones and recognition
+1. The player opens the Garden and chooses a suggested quest or a personal quest tied to a goal.
+2. The quest describes a concrete, helpful action and its expected effort.
+3. Moneyfi recognizes completion only when it can reliably observe the action or the user explicitly confirms it.
+4. The player and companion each receive modest XP and an encouraging message.
+5. Separate XP tracks advance their levels; levels unlock cosmetic garden choices, not financial features.
 
-Show small, private acknowledgments for meaningful actions and milestones, such as:
+Quests should be completable in a short session, have a clear finish state, and never require repeated app opens to maintain progress.
 
-- Creating a first budget or savings goal.
-- Reviewing a goal or budget.
-- Logging transactions consistently over time.
-- Reaching a user-defined goal milestone.
+### Quest categories
 
-Recognition should describe the action or progress, not judge the user's financial situation. Avoid streak resets, loss-aversion mechanics, leaderboards, and rewards based on spending less in isolation.
+**Story quests (one-time onboarding and learning)**
 
-### 3. Optional, actionable prompts
+- Plant your first savings goal.
+- Make a first budget for a category you choose.
+- Add a recurring bill or income reminder.
+- Explore how account balances and net worth are represented.
 
-Offer dismissible prompts that help users act on information already in Moneyfi, for example reviewing a category that is nearing its budget or checking an upcoming bill reminder. Do not send notifications unless the user explicitly opts in.
+**Stewardship quests (optional, repeatable reviews)**
 
-## Delivery plan
+- Review this month's budget and adjust it if your plans changed.
+- Check an upcoming bill reminder and confirm whether it is still accurate.
+- Review recent transactions and correct a category if needed.
+- Check a savings goal and update its self-reported progress if appropriate.
 
-### Phase 1: Goals MVP
+Repeatable review quests should be available on a weekly or monthly cadence, not every day. Repeating an action must not become a requirement for keeping XP or garden progress.
 
-- Add optional personal goals with a name, target amount, currency, and optional target date.
-- Show goal progress and a small set of user-defined milestones.
-- Let users edit, pause, complete, or remove a goal.
-- Keep goal progress separate from account balances; do not move money or imply that a goal is a separate account.
-- Add basic privacy and data ownership protections consistent with existing personal finance data.
+**Personal quests (user-defined intentions)**
 
-### Phase 2: Habit recognition
+- Let the user name a quest and optionally link it to an existing savings goal.
+- Allow users to set a target date or no date, pause, edit, complete, or delete it.
+- Personal quests may show progress from an existing goal but should not imply that Moneyfi verifies the underlying funds.
 
-- Add a small set of private badges for deliberate planning and consistent record keeping.
-- Make achievements informational and forgiving; never remove earned recognition after a missed day or a change in circumstances.
-- Allow users to hide or disable the recognition UI.
+Do not create quests that ask users to buy something, avoid necessary spending, meet an arbitrary savings amount, enter more transactions, or connect a financial account.
 
-### Phase 3: Helpful nudges
+## Progression and rewards
 
-- Add optional in-app prompts for actionable budget, goal, and bill-reminder follow-ups.
-- Provide dismiss, snooze, and opt-out controls.
-- Consider push or email notifications only if users request them and notification preferences and delivery safeguards are designed.
+- Use separate character and companion XP as a simple, cumulative record of completed quests; do not remove XP.
+- Award XP per completed quest, with a modest cap on repeatable quest rewards per period to limit farming.
+- Show level thresholds and the next cosmetic reward clearly. Avoid opaque loot boxes, random paid rewards, or pay-to-progress mechanics.
+- Level-ups can unlock garden decorations, plant varieties, color themes, or short narrative entries.
+- Keep savings-goal percentage milestones distinct from RPG XP: goal progress reflects the user's entered amount, while XP reflects completed planning/review actions. Do not award extra XP for larger balances or contributions.
+- Do not use streaks in the MVP. If a later experiment adds continuity indicators, they must never reset, remove rewards, or use guilt-based language.
 
-### Phase 4: Evaluate and refine
+## First release scope
 
-- Gather opt-in user feedback and measure whether goals and prompts help users return to their plans.
-- Review accessibility, privacy, and potential unintended pressure before expanding rewards.
-- Remove mechanics that increase anxiety or engagement without helping users make informed progress.
+### MVP: Quest board and dual progression
+
+1. Keep Garden quests opt-in in Settings, default off, and account-persisted.
+2. Add a small curated quest board with one story quest and weekly/monthly stewardship reviews.
+3. Define eligibility, completion, reward, and repeat cadence for every curated quest.
+4. Add private, separate XP totals and levels for the player's character and companion. Preserve progression when the user edits or pauses a financial goal.
+5. Store quest state and XP changes in an auditable, owner-scoped way. Prevent duplicate completion awards, including retries and concurrent requests.
+6. Let users hide/disable quests without losing progression; provide a separate way to delete game progress without deleting financial data.
+7. Keep quest copy calm and specific; explain when completion is self-confirmed versus detected from app data.
+
+### Later phases
+
+**Phase 2: More story and customization**
+
+- Add optional chapter themes and additional non-financial cosmetics.
+- Let users choose between a small number of calm visual styles.
+- Add user-created personal quests, with optional links to savings goals.
+- Gather opt-in feedback before adding more mechanics.
+
+**Phase 3: Carefully evaluated reminders**
+
+- Consider in-app reminders for an incomplete, useful quest.
+- Make reminders dismissible, snoozable, and separately controllable.
+- Do not add push or email notifications without an explicit user setting and a clear delivery design.
+
+Do not add social competition, paid items, cash rewards, penalties, or automated financial actions in these phases.
+
+## Data and behavior design notes
+
+The initial implementation already has an account-level `gamification_enabled` preference. The RPG board adds a character and companion with separate quest-earned XP and levels.
+
+The first quest implementation uses a fixed catalog and server-side Supabase functions:
+
+- The database verifies the signed-in user, opt-in preference, required underlying finance record, quest cadence, and fixed character/pet XP awards.
+- Completion rows are owner-scoped and unique per quest period; the browser cannot write completions or arbitrary XP totals.
+- Review quests are self-confirmed. The database checks that at least one relevant item exists, not that the user performed a particular review action.
+- Quest copy and reward values are mirrored in the UI and database. Keep them synchronized when changing the catalog.
+- Deleting game progress must not delete savings goals, budgets, or transactions.
+- Turning the feature off hides the RPG UI and stops quest prompts; current behavior retains progress.
+
+Future quest catalog changes should be versioned so tuning copy or rewards does not silently rewrite a user's completed history. User-facing controls to rename/customize characters and delete RPG progress remain future work.
 
 ## Success measures
 
-- Goal creation and completion rates, interpreted alongside user feedback.
-- Whether users return to update goals or review budgets over time.
-- Prompt usefulness and dismissal/opt-out rates.
-- User-reported clarity, motivation, and pressure.
+Evaluate usefulness, not engagement for its own sake:
 
-Do not optimize for daily opens, time spent in the app, transaction volume, or reduced spending alone. Those measures can reward unhealthy or misleading behavior.
+- Quest start-to-completion rate by quest type.
+- Whether users report that quests helped them understand or manage their plans.
+- Quest dismissal, opt-out, and game-progress deletion rates.
+- Accessibility issues and reports of pressure, guilt, or confusion.
+
+Do not optimize for daily opens, time in app, transaction count, spending reduction, amount saved, or account linking. Review the experience for unintended pressure before expanding it.
 
 ## Out of scope
 
-- Public leaderboards or comparisons of balances, net worth, savings, or spending.
-- Cash prizes, paid rewards, or financial incentives tied to transactions.
-- Penalties, broken-streak messaging, or shame-based copy.
-- Encouraging users to reduce necessary spending or take investment risks.
-- Automatic transfers or account actions as part of a game mechanic.
+- Public leaderboards, multiplayer competition, or sharing financial progress.
+- Cash prizes, paid progression, loot boxes, or rewards tied to purchases.
+- Streak loss, decay, negative XP, missed-day penalties, or shame-based copy.
+- Quests based on spending less, investing, borrowing, or meeting a prescribed savings amount.
+- Automatic transfers, bill payments, trading, or other money movement.
+- Requiring daily engagement, transaction entry, push notifications, or connected accounts.
 
-## Recommended starting point
+## Current implementation
 
-Build Phase 1 first: one optional, private savings-goal experience with clear progress and milestones. It addresses a meaningful gap in the current planning features and creates a sound foundation for any later recognition.
+- Savings goals are available in Planning, with manually tracked progress, optional target dates, and active/paused/completed states.
+- Garden quests can be enabled from signed-in Settings; the setting is off by default and stored per account.
+- The Overview adventure board shows an original player character and pet, with separate XP/level tracks.
+- Mini quests cover creating a savings goal and reviewing budgets, reminders, or recent activity. Completion is self-confirmed and database-limited to one-time, monthly, or weekly periods; an eligible underlying item must exist.
+- Quest completions and XP awards are stored through owner-checked Supabase functions, not writable directly from the browser.
+- Cosmetic inventory, character customization, user-created quests, and extended story chapters remain future work.
