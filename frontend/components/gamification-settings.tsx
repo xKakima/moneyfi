@@ -9,9 +9,11 @@ const supabase = getSupabaseBrowserClient();
 export function GamificationSettings({
   userId,
   onEnabledChange,
+  onSettingsLoaded,
 }: {
   userId: string;
   onEnabledChange?: (enabled: boolean) => void;
+  onSettingsLoaded?: () => void;
 }) {
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -39,12 +41,15 @@ export function GamificationSettings({
       } catch (queryError) {
         if (active) setError(queryError instanceof Error ? queryError.message : "Could not load gamification settings.");
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          onSettingsLoaded?.();
+        }
       }
     })();
 
     return () => { active = false; };
-  }, [onEnabledChange, userId]);
+  }, [onEnabledChange, onSettingsLoaded, userId]);
 
   async function saveEnabled(nextEnabled: boolean) {
     if (!supabase) {

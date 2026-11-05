@@ -10,6 +10,8 @@ Character customization, user-created quests, additional story chapters, cosmeti
 
 The quest board now has optional daily, weekly, and monthly check-ins in addition to the one-time first-goal quest. Daily quests are deliberately tiny (a quick review of an existing transaction or active reminder) and award only 5 XP to each character. Weekly goal check-ins and monthly budget/reminder reviews reward reflection rather than balances or spending. Completions are limited in the database by PHT day, Monday-based week, or PHT month as appropriate.
 
+The character and companion quest board lives on its own `/adventure` page. Overview only has a compact entry card, so the main finance dashboard remains focused on financial information.
+
 ## Small-quest design notes
 
 - Keep each action specific, doable in roughly a minute, and linked directly to the relevant screen.

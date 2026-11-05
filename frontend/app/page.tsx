@@ -231,7 +231,7 @@ function DashboardHeader({
       {email && (
         <nav aria-label="Mobile navigation" className="mx-auto grid max-w-[1320px] grid-cols-5 border-t border-line px-5 sm:px-8 md:hidden">
           <Link aria-current="page" className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-ink sm:text-sm" href="/">Overview</Link>
-          <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/transactions">Transactions</Link>
+          <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/transactions"><span className="sm:hidden">Activity</span><span className="hidden sm:inline">Transactions</span></Link>
           <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/accounts">Accounts</Link>
           <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/planning">Planning</Link>
           <Link className="flex min-h-12 items-center justify-center px-1 text-xs font-medium text-muted transition-colors hover:text-ink sm:text-sm" href="/adventure">Adventure</Link>
