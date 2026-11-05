@@ -870,7 +870,7 @@ export default function DashboardPage() {
         const [goalResult, budgetResult, reminderResult, transactionResult] = await Promise.all([
           supabase.from("savings_goals").select("id").eq("user_id", userId).limit(1),
           supabase.from("category_budgets").select("id").eq("user_id", userId).limit(1),
-          supabase.from("recurring_cashflows").select("id").eq("user_id", userId).limit(1),
+          supabase.from("recurring_cashflows").select("id").eq("user_id", userId).eq("active", true).limit(1),
           supabase.from("transactions").select("id").eq("user_id", userId).limit(1),
         ]);
         if (!active) return;

@@ -6,6 +6,26 @@ The opt-in RPG MVP is implemented: signed-in users can complete the curated mini
 
 Character customization, user-created quests, additional story chapters, cosmetic inventory, and reminders were not part of this MVP and remain future ideas, not shipped features.
 
+## Quest cadence update
+
+The quest board now has optional daily, weekly, and monthly check-ins in addition to the one-time first-goal quest. Daily quests are deliberately tiny (a quick review of an existing transaction or active reminder) and award only 5 XP to each character. Weekly goal check-ins and monthly budget/reminder reviews reward reflection rather than balances or spending. Completions are limited in the database by PHT day, Monday-based week, or PHT month as appropriate.
+
+## Small-quest design notes
+
+- Keep each action specific, doable in roughly a minute, and linked directly to the relevant screen.
+- Offer a small choice of actions rather than making a daily task mandatory. No streaks, missed-day loss, or escalating pressure.
+- Do not prompt users to create transactions, spend less, save a set amount, or open the app just to earn points.
+- Keep daily XP small and keep daily quests tied to existing useful records; weekly/monthly tasks can support more thoughtful reviews.
+- Treat review completion as self-confirmed and state that the app verifies an eligible item exists, not that it can verify a person performed the review.
+
+This guidance is informed by the Fogg Behavior Model's emphasis on behavior ability and a timely prompt, and habit-formation research suggesting simple, self-chosen actions in a stable context can be easier to repeat. The evidence comes largely from behavior/health settings and should not be read as proof that financial quests improve outcomes. Missing an occasional action should not reset progress.
+
+References:
+
+- Fogg Behavior Model, Behavior Design Lab: https://behaviormodel.org/
+- Gardner, B., Lally, P., & Wardle, J. (2012). Making health habitual: the psychology of “habit-formation” and general practice. *British Journal of General Practice*, 62(605), 664–666. https://pmc.ncbi.nlm.nih.gov/articles/PMC3505409/
+- Lally, P., van Jaarsveld, C. H. M., Potts, H. W. W., & Wardle, J. (2010). How are habits formed: Modelling habit formation in the real world. *European Journal of Social Psychology*, 40(6), 998–1009. https://doi.org/10.1002/ejsp.674
+
 ## Vision
 
 Make managing money feel like a personal, low-pressure adventure. The user is the hero; their real-life financial priorities are the story. Quests guide users toward useful actions in Moneyfi, while experience and cosmetic rewards make progress visible. The RPG layer is optional and never affects core finance features.

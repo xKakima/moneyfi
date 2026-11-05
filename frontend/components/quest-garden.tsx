@@ -17,6 +17,40 @@ const quests = [
     cadence: "One time",
     href: "/planning#savings-goals-title",
     requirement: "goal",
+    category: "One time",
+  },
+  {
+    key: "daily_transaction_review",
+    title: "A quick activity check",
+    description: "Take a moment to review one transaction you have already recorded.",
+    characterXp: 5,
+    petXp: 5,
+    cadence: "Daily",
+    href: "/transactions",
+    requirement: "transaction",
+    category: "Daily",
+  },
+  {
+    key: "daily_reminder_check",
+    title: "Check a reminder",
+    description: "Quickly check an active bill or income reminder.",
+    characterXp: 5,
+    petXp: 5,
+    cadence: "Daily",
+    href: "/planning#cashflow-title",
+    requirement: "reminder",
+    category: "Daily",
+  },
+  {
+    key: "weekly_goal_checkin",
+    title: "Check in with a goal",
+    description: "See whether your goal still fits your plans. Update it only if you want to.",
+    characterXp: 10,
+    petXp: 15,
+    cadence: "Weekly",
+    href: "/planning#savings-goals-title",
+    requirement: "goal",
+    category: "Weekly",
   },
   {
     key: "budget_review",
@@ -27,6 +61,7 @@ const quests = [
     cadence: "Monthly",
     href: "/planning#budgets-title",
     requirement: "budget",
+    category: "Monthly",
   },
   {
     key: "bill_review",
@@ -37,16 +72,18 @@ const quests = [
     cadence: "Monthly",
     href: "/planning#cashflow-title",
     requirement: "reminder",
+    category: "Monthly",
   },
   {
     key: "transaction_review",
     title: "Look over recent activity",
-    description: "Review a recent transaction and update its details if needed.",
+    description: "Look over a transaction you have recorded and update its details if needed.",
     characterXp: 15,
     petXp: 20,
     cadence: "Weekly",
     href: "/transactions",
     requirement: "transaction",
+    category: "Weekly",
   },
 ] as const;
 
@@ -197,7 +234,7 @@ export function QuestGarden({
         <div className="mt-7 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h3 className="font-display text-xl text-ink">Mini quests</h3>
-            <p className="mt-1 text-xs text-muted">A few helpful check-ins. Quest rewards are private and never depend on amounts.</p>
+            <p className="mt-1 text-xs text-muted">Optional daily check-ins are designed to take about a minute. No penalties for skipping; rewards never depend on amounts.</p>
           </div>
           <Link className="text-xs font-semibold text-accent hover:underline" href="/planning">Visit your plans</Link>
         </div>
@@ -208,38 +245,49 @@ export function QuestGarden({
             <button className="mt-2 text-xs font-semibold text-accent hover:underline" onClick={() => { void reloadRpgState(); }} type="button">Try again</button>
           </div>
         ) : (
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
-            {quests.map((quest) => {
-              const isCompleted = rpgState?.completedQuestKeys.includes(quest.key) ?? false;
-              const isAvailable = prerequisites[quest.requirement];
+          <div className="mt-4 space-y-6">
+            {(["Daily", "Weekly", "Monthly", "One time"] as const).map((category) => {
+              const categoryQuests = quests.filter((quest) => quest.category === category);
+              if (!categoryQuests.length) return null;
               return (
-                <article className="rounded-xl border border-line bg-surface/80 p-4" key={quest.key}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-2.5">
-                      <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full ${isCompleted ? "bg-accent-soft text-accent" : "bg-raised text-muted"}`}>
-                        {isCompleted ? <Check aria-hidden="true" size={16} /> : <BookOpenCheck aria-hidden="true" size={16} />}
-                      </span>
-                      <div>
-                        <h4 className="text-sm font-semibold text-ink">{quest.title}</h4>
-                        <p className="mt-1 text-xs leading-5 text-muted">{quest.description}</p>
-                      </div>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-raised px-2 py-1 text-[10px] font-medium text-muted">{quest.cadence}</span>
+                <section aria-labelledby={`quest-category-${category.toLowerCase().replace(" ", "-")}`} key={category}>
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted" id={`quest-category-${category.toLowerCase().replace(" ", "-")}`}>{category} quests</h4>
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {categoryQuests.map((quest) => {
+                      const isCompleted = rpgState?.completedQuestKeys.includes(quest.key) ?? false;
+                      const isAvailable = prerequisites[quest.requirement];
+                      return (
+                        <article className="rounded-xl border border-line bg-surface/80 p-4" key={quest.key}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-2.5">
+                              <span className={`mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full ${isCompleted ? "bg-accent-soft text-accent" : "bg-raised text-muted"}`}>
+                                {isCompleted ? <Check aria-hidden="true" size={16} /> : <BookOpenCheck aria-hidden="true" size={16} />}
+                              </span>
+                              <div>
+                                <h5 className="text-sm font-semibold text-ink">{quest.title}</h5>
+                                <p className="mt-1 text-xs leading-5 text-muted">{quest.description}</p>
+                              </div>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-raised px-2 py-1 text-[10px] font-medium text-muted">{quest.cadence}</span>
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+                            <span className="text-[11px] font-medium text-muted">+{quest.characterXp} character XP · +{quest.petXp} pet XP</span>
+                            {isCompleted ? <span className="text-xs font-semibold text-accent">{quest.cadence === "One time" ? "Completed" : quest.cadence === "Daily" ? "Done today" : `Done this ${quest.cadence.toLowerCase()}`}</span> : isAvailable ? (
+                              <div className="flex items-center gap-3">
+                                <Link className="text-xs font-semibold text-accent hover:underline" href={quest.href}>Review</Link>
+                                <button className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-semibold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60" disabled={completingKey !== null} onClick={() => { void completeQuest(quest); }} type="button">
+                                  {completingKey === quest.key ? "Saving..." : "Mark complete"}
+                                </button>
+                              </div>
+                            ) : (
+                              <Link className="flex items-center gap-1 text-[11px] font-semibold text-accent hover:underline" href={quest.href}><CircleHelp aria-hidden="true" size={13} /> {quest.key === "first_goal" ? "Create a goal" : quest.key === "budget_review" ? "Add a budget" : quest.key === "bill_review" || quest.key === "daily_reminder_check" ? "Add a reminder" : "Add a transaction"}</Link>
+                            )}
+                          </div>
+                        </article>
+                      );
+                    })}
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
-                    <span className="text-[11px] font-medium text-muted">+{quest.characterXp} character XP · +{quest.petXp} pet XP</span>
-                    {isCompleted ? <span className="text-xs font-semibold text-accent">{quest.cadence === "One time" ? "Completed" : quest.cadence === "Monthly" ? "Done this month" : "Done this week"}</span> : isAvailable ? (
-                      <div className="flex items-center gap-3">
-                        <Link className="text-xs font-semibold text-accent hover:underline" href={quest.href}>Review</Link>
-                        <button className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-semibold text-white transition hover:brightness-95 disabled:cursor-wait disabled:opacity-60" disabled={completingKey !== null} onClick={() => { void completeQuest(quest); }} type="button">
-                          {completingKey === quest.key ? "Saving..." : "Mark complete"}
-                        </button>
-                      </div>
-                    ) : (
-                      <Link className="flex items-center gap-1 text-[11px] font-semibold text-accent hover:underline" href={quest.href}><CircleHelp aria-hidden="true" size={13} /> {quest.key === "first_goal" ? "Create a goal" : quest.key === "budget_review" ? "Add a budget" : quest.key === "bill_review" ? "Add a reminder" : "Add a transaction"}</Link>
-                    )}
-                  </div>
-                </article>
+                </section>
               );
             })}
           </div>

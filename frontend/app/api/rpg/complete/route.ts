@@ -4,6 +4,9 @@ export const dynamic = "force-dynamic";
 
 const questKeys = new Set([
   "first_goal",
+  "daily_transaction_review",
+  "daily_reminder_check",
+  "weekly_goal_checkin",
   "budget_review",
   "bill_review",
   "transaction_review",
