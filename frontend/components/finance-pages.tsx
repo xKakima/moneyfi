@@ -14,6 +14,7 @@ type Account = { id: string; name: string; type: string; balance: number | strin
 type Transaction = { id: string; amount: number | string; account_id: string | null; category: string | null; notes: string | null; transaction_type: string; currency: string; created_at: string };
 type CategoryBudget = { id: string; category: string; currency: string; monthly_limit: number | string };
 type RecurringCashflow = { id: string; name: string; amount: number | string; transaction_type: "income" | "expense"; account_id: string | null; category: string | null; currency: string; frequency: "weekly" | "monthly" | "yearly"; next_due_date: string; active: boolean };
+type SavingsGoal = { id: string; name: string; target_amount: number | string; saved_amount: number | string; currency: string; target_date: string | null; status: "active" | "paused" | "completed" };
 type BudgetExpense = { amount: number | string; category: string | null; currency: string };
 type PageKind = "accounts" | "transactions" | "planning";
 
@@ -288,6 +289,7 @@ export function FinanceDataPage({ kind }: { kind: PageKind }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<CategoryBudget[]>([]);
   const [recurring, setRecurring] = useState<RecurringCashflow[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [monthExpenses, setMonthExpenses] = useState<BudgetExpense[]>([]);
   const [monthLabel, setMonthLabel] = useState("");
   const [today, setToday] = useState("");
@@ -342,15 +344,17 @@ export function FinanceDataPage({ kind }: { kind: PageKind }) {
       client.from("category_budgets").select("id, category, currency, monthly_limit").eq("user_id", userId).order("category"),
       client.from("recurring_cashflows").select("id, name, amount, transaction_type, account_id, category, currency, frequency, next_due_date, active").eq("user_id", userId).order("next_due_date"),
       client.from("transactions").select("amount, category, currency").eq("user_id", userId).eq("transaction_type", "expense").gte("created_at", monthStart).lt("created_at", nextMonthStart),
-    ]).then(([budgetResult, recurringResult, expenseResult]) => {
+      client.from("savings_goals").select("id, name, target_amount, saved_amount, currency, target_date, status").eq("user_id", userId).order("created_at", { ascending: false }),
+    ]).then(([budgetResult, recurringResult, expenseResult, goalResult]) => {
       if (!active) return;
-      const queryError = budgetResult.error ?? recurringResult.error ?? expenseResult.error;
+      const queryError = budgetResult.error ?? recurringResult.error ?? expenseResult.error ?? goalResult.error;
       if (queryError) setPlanningError(queryError.message);
       else {
         setPlanningError(null);
         setBudgets((budgetResult.data ?? []) as CategoryBudget[]);
         setRecurring((recurringResult.data ?? []) as RecurringCashflow[]);
         setMonthExpenses((expenseResult.data ?? []) as BudgetExpense[]);
+        setSavingsGoals((goalResult.data ?? []) as SavingsGoal[]);
         setMonthLabel(monthName);
         setToday(todayValue);
       }
@@ -377,7 +381,7 @@ export function FinanceDataPage({ kind }: { kind: PageKind }) {
         ) : (
           <>
             <div className="mb-7 flex flex-col gap-4 sm:mb-9 sm:flex-row sm:items-end sm:justify-between"><div><p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-accent">Moneyfi workspace</p><h1 className="font-display text-[34px] leading-tight text-ink sm:text-[40px]">{title}</h1><p className="mt-2 text-sm text-muted">{description}</p></div><Link className="inline-flex h-10 items-center self-start rounded-lg border border-line bg-surface px-4 text-sm font-semibold text-ink hover:bg-raised sm:self-auto" href="/">Back to overview</Link></div>
-            {error ? <div className="rounded-xl border border-line bg-surface px-5 py-8 text-center"><p className="text-sm font-medium text-ink">Could not load {title.toLowerCase()}</p><p className="mt-1 text-xs text-muted">{error}</p></div> : kind === "accounts" ? <AccountList accounts={accounts} client={supabase} loading={loading} onChanged={() => setRefreshToken((value) => value + 1)} userId={session.user.id} /> : kind === "transactions" ? <TransactionList accounts={accounts} loading={loading} transactions={transactions} /> : planningError ? <div className="rounded-xl border border-line bg-surface px-5 py-8 text-center"><p className="text-sm font-medium text-ink">Could not load planning data</p><p className="mt-1 text-xs text-muted">{planningError}</p></div> : planningLoadedUserId !== session.user.id || loading ? <p className="py-12 text-center text-sm text-muted">Loading planning data...</p> : <PlanningWorkspace accounts={accounts} budgets={budgets} client={supabase} monthExpenses={monthExpenses} monthLabel={monthLabel} onChanged={() => setRefreshToken((value) => value + 1)} recurring={recurring} today={today} userId={session.user.id} />}
+            {error ? <div className="rounded-xl border border-line bg-surface px-5 py-8 text-center"><p className="text-sm font-medium text-ink">Could not load {title.toLowerCase()}</p><p className="mt-1 text-xs text-muted">{error}</p></div> : kind === "accounts" ? <AccountList accounts={accounts} client={supabase} loading={loading} onChanged={() => setRefreshToken((value) => value + 1)} userId={session.user.id} /> : kind === "transactions" ? <TransactionList accounts={accounts} loading={loading} transactions={transactions} /> : planningError ? <div className="rounded-xl border border-line bg-surface px-5 py-8 text-center"><p className="text-sm font-medium text-ink">Could not load planning data</p><p className="mt-1 text-xs text-muted">{planningError}</p></div> : planningLoadedUserId !== session.user.id || loading ? <p className="py-12 text-center text-sm text-muted">Loading planning data...</p> : <PlanningWorkspace accounts={accounts} budgets={budgets} client={supabase} monthExpenses={monthExpenses} monthLabel={monthLabel} onChanged={() => setRefreshToken((value) => value + 1)} recurring={recurring} savingsGoals={savingsGoals} today={today} userId={session.user.id} />}
           </>
         )}
       </main>
