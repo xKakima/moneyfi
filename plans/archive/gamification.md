@@ -1,5 +1,11 @@
 # Moneyfi RPG Gamification Plan
 
+## Archive status
+
+The opt-in RPG MVP is implemented: signed-in users can complete the curated mini-quests, earn separate character and companion XP, and progress through levels. XP awards are enforced through authenticated Next.js API routes and atomic Supabase functions.
+
+Character customization, user-created quests, additional story chapters, cosmetic inventory, and reminders were not part of this MVP and remain future ideas, not shipped features.
+
 ## Vision
 
 Make managing money feel like a personal, low-pressure adventure. The user is the hero; their real-life financial priorities are the story. Quests guide users toward useful actions in Moneyfi, while experience and cosmetic rewards make progress visible. The RPG layer is optional and never affects core finance features.
@@ -101,10 +107,12 @@ Do not add social competition, paid items, cash rewards, penalties, or automated
 
 The initial implementation already has an account-level `gamification_enabled` preference. The RPG board adds a character and companion with separate quest-earned XP and levels.
 
-The first quest implementation uses a fixed catalog and server-side Supabase functions:
+The first quest implementation uses a fixed catalog and a Next.js API layer backed by Supabase functions:
 
+- The browser calls same-origin Next.js route handlers for RPG state and quest completion. The route handlers verify the Supabase access token and validate the quest key before invoking database operations.
 - The database verifies the signed-in user, opt-in preference, required underlying finance record, quest cadence, and fixed character/pet XP awards.
 - Completion rows are owner-scoped and unique per quest period; the browser cannot write completions or arbitrary XP totals.
+- Keep database transactions and uniqueness constraints as the source of truth for atomic XP awards; the API layer is the application boundary, not a replacement for database invariants.
 - Review quests are self-confirmed. The database checks that at least one relevant item exists, not that the user performed a particular review action.
 - Quest copy and reward values are mirrored in the UI and database. Keep them synchronized when changing the catalog.
 - Deleting game progress must not delete savings goals, budgets, or transactions.

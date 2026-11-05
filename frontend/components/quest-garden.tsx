@@ -3,9 +3,8 @@
 import { BookOpenCheck, Check, CircleHelp, PersonStanding, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { completeRpgQuest, getRpgState } from "@/lib/rpg-api";
 
-const supabase = getSupabaseBrowserClient();
 const xpPerLevel = 100;
 
 const quests = [
@@ -110,12 +109,7 @@ export function QuestGarden({
   const [completionMessage, setCompletionMessage] = useState<string | null>(null);
 
   const fetchRpgState = useCallback(async () => {
-    if (!supabase) {
-      throw new Error("RPG quests are unavailable because Supabase is not configured.");
-    }
-    const { data, error: queryError } = await supabase.rpc("get_rpg_state");
-    if (queryError) throw new Error(queryError.message);
-    const nextState = parseRpgState(data);
+    const nextState = parseRpgState(await getRpgState());
     if (!nextState) {
       throw new Error("The RPG progress response was incomplete. Please try again.");
     }
@@ -147,16 +141,11 @@ export function QuestGarden({
   }
 
   async function completeQuest(quest: (typeof quests)[number]) {
-    if (!supabase) return;
     setCompletingKey(quest.key);
     setActionError(null);
     setCompletionMessage(null);
     try {
-      const { error: completionError } = await supabase.rpc("complete_rpg_quest", { p_quest_key: quest.key });
-      if (completionError) {
-        setActionError(completionError.message);
-        return;
-      }
+      await completeRpgQuest(quest.key);
       setCompletionMessage(`${quest.title} complete! You earned ${quest.characterXp} XP and your companion earned ${quest.petXp} XP.`);
       await reloadRpgState();
     } catch (completionError) {
